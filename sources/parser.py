@@ -1,33 +1,6 @@
-from enum import Enum
+from models import ParsingError, HubTypes, HubOptions, ZoneTypes
 import re
 from typing import Any
-
-class ParsingError(Exception):
-    def __init__(self, indice: int, message: str) -> None:
-        self.indice: int = indice + 1
-        super().__init__(message)
-        
-    def __str__(self) -> str:
-        return (f"[PARSING ERROR] line {self.indice}: " + super().__str__())
-
-
-class HubTypes(Enum):
-    STR = "start_hub"
-    END = "end_hub"
-    HUB = "hub"
-    
-    
-class HubOptions(Enum):
-    COL = "color"
-    ZON = "zone"
-    MXD = "max_drones"
-    
-    
-class ZoneTypes(Enum):
-    NOR = "normal"
-    BLO = "blocked"
-    RES = "restricted"
-    PRI = "priority"
 
 
 class Parser():
@@ -42,9 +15,13 @@ class Parser():
     def check_file(self, file: str) -> None:
         """Check all conditions for entry's file"""
         try:
-            text: str = open(file).read()
-        except (FileNotFoundError, Exception) as e:
+            with open(file) as f:
+                text: str = f.read()
+        except FileNotFoundError as e:
             raise (e)
+        # To catch other errors (permission, folder instead of file)
+        except OSError as e:
+            raise Exception(f"Unable to read file '{file}': {e}") from e
         self.delete_comments(text)
         if not self.rows:
             raise Exception(f" {file} is empty or contain comments only")
@@ -57,7 +34,6 @@ class Parser():
             raise Exception("There is no start point")
         if self.nb_ends == 0:
             raise Exception("There is no end point") 
-            # print(self.rows)
 
     def delete_comments(self, string: str) -> None:
         """Delete all comments part in the file"""
@@ -82,8 +58,8 @@ class Parser():
                              "\nFirst line must be: 'nb_drones: {positive int}'\n"
                              f"You have: '{key.strip() + _ + value}'")
         try:
-            value = int(value.strip())
-            if value <= 0:
+            int_value = int(value.strip())
+            if int_value <= 0:
                 raise ValueError
         except ValueError:
             raise ParsingError(self.index,
@@ -96,35 +72,33 @@ class Parser():
         if not line:
             return
         key, _, rest_line = line.strip().partition(": ")
-        if key in HubTypes:
-            if key == HubTypes.STR.value:
-                self.nb_starts += 1
-            elif key == HubTypes.END.value:
-                self.nb_ends += 1
-            elif key == "nb_drones":
-                raise ParsingError(self.i, "nb_drones is already set")
-            if self.nb_starts > 1:
-                raise ParsingError(self.i, "There is too many start points")
-            if self.nb_ends > 1:
-                raise ParsingError(self.i, "There is too many end points")
-            self.check_hub(rest_line)
+        if not key in HubTypes:
+            raise ParsingError(self.i, f"'{key}' is unknown, "
+                               f"it must be a 'hub', 'start_hub', 'end_hub' or a 'connection'")
+        elif key == "nb_drones":
+            raise ParsingError(self.i, "nb_drones is already set")
         elif key == "connection":
             self.check_connection(rest_line)
         else:
-            raise ParsingError(self.i, f"'{key}' is unknown, "
-                               f"it must be a 'hub', 'start_hub', 'end_hub' or a 'connection'")
-            
+            if key == HubTypes.STR.value:
+                self.nb_starts += 1
+                if self.nb_starts > 1:
+                    raise ParsingError(self.i, "There is too many start points")
+            elif key == HubTypes.END.value:
+                self.nb_ends += 1
+                if self.nb_ends > 1:
+                    raise ParsingError(self.i, "There is too many end points")
+            self.check_hub(rest_line)
+       
     def check_hub(self, line: str) -> None:
         """Check hub's name, coordinates and options"""
         match = re.search(r"\[(.*?)\]", line)
         options = []
         if match:
-            options = match.group(1).strip().split(" ")
-            options = list(filter(None, options))
-            elements = (line[:line.index('[')]).strip().split(" ")
+            options = match.group(1).strip().split()
+            elements = (line[:line.index('[')]).strip().split()
         else:
             elements = line.strip().split()
-        elements = list(filter(None, elements)) 
         try:
             name, abscissa, ordinate = elements
         except Exception:
@@ -179,10 +153,26 @@ class Parser():
                 
             if color_key > 1 or zone_key > 1 or max_key > 1:
                 raise ParsingError(self.i, "put each option once")
-                    
-                
+                              
     def check_connection(self, line: str) -> None:
-        pass
+        """Check connection's name, coordinates and options"""
+        match = re.search(r"\[(.*?)\]", line)
+        options = []
+        if match:
+            options = match.group(1).strip().split()
+            name = (line[:line.index('[')]).strip().split()
+        else:
+            name = line.strip().split()        
+        if not len(name) == 1:
+            raise ParsingError(self.i, "Connection's name must be 'A_point-B_point'")
+        if name.find("-") == -1:
+            raise ParsingError(self.i, "Hub's name must not contain '-'")
+        if name in self.hub_names:
+            raise ParsingError(self.i, f"There is already a '{name}' hub.")
+        self.hub_names.append(name)
+        if options:
+            self.check_connect_options(options)
+        print(options)
 
 
 if __name__ == "__main__":

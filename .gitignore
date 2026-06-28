@@ -1,0 +1,9 @@
+# cache Python
+__pycache__/
+*.py[cod]
+
+# Environnement virtuel (uv)
+.venv/
+
+# Cache mypy
+.mypy_cache/
