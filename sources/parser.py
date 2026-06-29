@@ -119,8 +119,7 @@ class Parser():
 
         if options:
             self.check_hub_options(options)
-        else:
-            self.add_hub(name, int_abscissa, int_ordinate)
+        self.add_hub(name, int_abscissa, int_ordinate, options)
 
     def check_hub_options(self, options: list[str]) -> None:
         if len(options) > 3:
@@ -158,8 +157,27 @@ class Parser():
             if color_key > 1 or zone_key > 1 or max_key > 1:
                 raise ParsingError(self.i, "put each option once")
 
-    def add_hub(self, name: str, abs: int, ord: int, ):
-        pass
+    def add_hub(self, name: str, absc: int, ord: int, options: list[str]) -> None:
+        dic_option = {}
+        color: str | None = None
+        max_drone: int = 1
+        zone: str = ""
+        if options:
+            for option in options:
+                key, value = option.split("=")
+                dic_option[key] = value
+
+        if not HubOptions.ZON in dic_option.keys():
+            max_drone = int(dic_option.get(HubOptions.MXD.value))
+
+            self.hubs[name] = Zone(name, absc, ord, max_drone, color)
+        elif dic_option[HubOptions.ZON] == ZoneTypes.BLO:
+
+
+
+
+        elif
+            for key, value in option
 
     def check_connection(self, line: str) -> None:
         """Check connection's name, coordinates and options"""
