@@ -1,4 +1,4 @@
-from models import ParsingError, HubTypes, HubOptions, ZoneTypes
+from models import ParsingError, HubTypes, HubOptions, ZoneTypes, Zone
 import re
 from typing import Any
 
@@ -6,9 +6,8 @@ from typing import Any
 class Parser():
     def __init__(self) -> None:
         self.rows: list[str] = []
-        self.hub_names: list[str] =[]
-        self.connection_names: list[set[str, str]] = []
-        self.dic: dict[str, dict[Any, Any]] = {}
+        self.connection_names: list[set[str]] = []
+        self.hubs: dict[str, Zone] = {}
         self.nb_starts = 0
         self.nb_ends = 0
 
@@ -25,7 +24,7 @@ class Parser():
         self.delete_comments(text)
         if not self.rows:
             raise Exception(f" {file} is empty or contain comments only")
-        
+
         self.check_drones()
         for self.i in range(self.index + 1, len(self.rows)):
             if self.rows[self.i]:
@@ -33,7 +32,7 @@ class Parser():
         if self.nb_starts == 0:
             raise Exception("There is no start point")
         if self.nb_ends == 0:
-            raise Exception("There is no end point") 
+            raise Exception("There is no end point")
 
     def delete_comments(self, string: str) -> None:
         """Delete all comments part in the file"""
@@ -48,7 +47,7 @@ class Parser():
             self.rows.append(line)
 
     def check_drones(self) -> None:
-        ("""Find the first no empty line and 
+        ("""Find the first no empty line and
         check if the number of drone is positive.""")
         self.index: int = next((i for i, row in enumerate(self.rows) if row))
         key, _, value = self.rows[self.index].strip().partition(": ")
@@ -89,7 +88,7 @@ class Parser():
                 if self.nb_ends > 1:
                     raise ParsingError(self.i, "There is too many end points")
             self.check_hub(rest_line)
-       
+
     def check_hub(self, line: str) -> None:
         """Check hub's name, coordinates and options"""
         match = re.search(r"\[(.*?)\]", line)
@@ -103,34 +102,39 @@ class Parser():
             name, abscissa, ordinate = elements
         except Exception:
             raise ParsingError(self.i, "You must have 3 parameters before options '[]'")
-        
+
         if not name.find("-") == -1:
             raise ParsingError(self.i, "Hub's name must not contain '-'")
         try:
-            abscissa = int(abscissa)
-            ordinate = int(ordinate)
+            int_abscissa = int(abscissa)
+            int_ordinate = int(ordinate)
         except Exception:
             raise ParsingError(self.i, "Coordinates must be integers")
-        if name in self.hub_names:
+        if name in self.hubs.keys():
             raise ParsingError(self.i, f"There is already a '{name}' hub.")
-        self.hub_names.append(name)
+        for hub in self.hubs.keys():
+            if (int_abscissa == self.hubs[hub].absc
+            and int_ordinate == self.hubs[hub].ordinate):
+                raise ParsingError(self.i, f"There is already a hub to this coordinates.")
+
         if options:
             self.check_hub_options(options)
-        print(options)
-        
+        else:
+            self.add_hub(name, int_abscissa, int_ordinate)
+
     def check_hub_options(self, options: list[str]) -> None:
         if len(options) > 3:
             raise ParsingError(self.i, "too many options, max 3")
+        max_key = 0
         color_key = 0
         zone_key = 0
-        max_key = 0
         for option in options:
             try:
                 key, value = option.split("=")
             except Exception:
-                raise ParsingError(self.i, "options must be written:[color=blue max_drones=2]")  
+                raise ParsingError(self.i, "options must be written:[color=blue max_drones=2]")
             if not key in HubOptions:
-                raise ParsingError(self.i, 
+                raise ParsingError(self.i,
                                    f"'{key}', options availables are 'color', 'zone' and 'max_drones'")
             elif key == HubOptions.COL.value:
                 color_key += 1
@@ -147,13 +151,16 @@ class Parser():
                 try:
                     value = int(value)
                     if value < 0:
-                        raise ParsingError
+                        raise ParsingError(self.i, "max_drones must be a positive integer")
                 except Exception:
-                    raise ParsingError(self.i, "max_drones must be a positive integer")  
-                
+                    raise ParsingError(self.i, "max_drones must be a positive integer")
+
             if color_key > 1 or zone_key > 1 or max_key > 1:
                 raise ParsingError(self.i, "put each option once")
-                              
+
+    def add_hub(self, name: str, abs: int, ord: int, ):
+        pass
+
     def check_connection(self, line: str) -> None:
         """Check connection's name, coordinates and options"""
         match = re.search(r"\[(.*?)\]", line)
@@ -162,14 +169,14 @@ class Parser():
             options = match.group(1).strip().split()
             name = (line[:line.index('[')]).strip().split()
         else:
-            name = line.strip().split()        
+            name = line.strip().split()
         if not len(name) == 1:
             raise ParsingError(self.i, "Connection's name must be 'A_point-B_point'")
-        if name.find("-") == -1:
-            raise ParsingError(self.i, "Hub's name must not contain '-'")
+        if name[0].find("-") == -1:
+            raise ParsingError(self.i, "Hub's name must contain '-'")
         if name in self.hub_names:
             raise ParsingError(self.i, f"There is already a '{name}' hub.")
-        self.hub_names.append(name)
+        self.hub_names.append(name[0])
         if options:
             self.check_connect_options(options)
         print(options)
