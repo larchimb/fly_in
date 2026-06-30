@@ -1,4 +1,5 @@
 from models import ParsingError, HubTypes, HubOptions, ZoneTypes, Zone
+from models import BlockedZone, RestrictedZone, PriorityZone
 import re
 from typing import Any
 
@@ -33,6 +34,7 @@ class Parser():
             raise Exception("There is no start point")
         if self.nb_ends == 0:
             raise Exception("There is no end point")
+        print(self.hubs)
 
     def delete_comments(self, string: str) -> None:
         """Delete all comments part in the file"""
@@ -71,7 +73,7 @@ class Parser():
         if not line:
             return
         key, _, rest_line = line.strip().partition(": ")
-        if not key in HubTypes:
+        if key not in [e.value for e in HubTypes]:
             raise ParsingError(self.i, f"'{key}' is unknown, "
                                f"it must be a 'hub', 'start_hub', 'end_hub' or a 'connection'")
         elif key == "nb_drones":
@@ -132,7 +134,7 @@ class Parser():
                 key, value = option.split("=")
             except Exception:
                 raise ParsingError(self.i, "options must be written:[color=blue max_drones=2]")
-            if not key in HubOptions:
+            if key not in [e.value for e in HubOptions]:
                 raise ParsingError(self.i,
                                    f"'{key}', options availables are 'color', 'zone' and 'max_drones'")
             elif key == HubOptions.COL.value:
@@ -141,7 +143,7 @@ class Parser():
                     raise ParsingError(self.i, "color must be an alphabetic string")
             elif key == HubOptions.ZON.value:
                 zone_key += 1
-                if not value in ZoneTypes:
+                if value not in [e.value for e in ZoneTypes]:
                     raise ParsingError(self.i,
                                        f"'{value}', options availables are 'normal', "
                                        "'blocked', 'restricted' and 'priority'")
@@ -160,44 +162,45 @@ class Parser():
     def add_hub(self, name: str, absc: int, ord: int, options: list[str]) -> None:
         dic_option = {}
         color: str | None = None
-        max_drone: int = 1
-        zone: str = ""
+        max_drone: int | None = 1
+        zone: str | None = None
         if options:
             for option in options:
                 key, value = option.split("=")
                 dic_option[key] = value
+            color = dic_option.get("color")
+            max_drone = dic_option.get(HubOptions.MXD.value)
+            zone = dic_option.get(HubOptions.ZON.value)
 
-        if not HubOptions.ZON in dic_option.keys():
-            max_drone = int(dic_option.get(HubOptions.MXD.value))
-
+        if zone == ZoneTypes.BLO.value:
+            self.hubs[name] = BlockedZone(name, absc, ord, max_drone, color)
+        elif zone == ZoneTypes.RES.value:
+            self.hubs[name] = RestrictedZone(name, absc, ord, max_drone, color)
+        elif zone == ZoneTypes.PRI.value:
+            self.hubs[name] = PriorityZone(name, absc, ord, max_drone, color)
+        else:
             self.hubs[name] = Zone(name, absc, ord, max_drone, color)
-        elif dic_option[HubOptions.ZON] == ZoneTypes.BLO:
-
-
-
-
-        elif
-            for key, value in option
 
     def check_connection(self, line: str) -> None:
-        """Check connection's name, coordinates and options"""
-        match = re.search(r"\[(.*?)\]", line)
-        options = []
-        if match:
-            options = match.group(1).strip().split()
-            name = (line[:line.index('[')]).strip().split()
-        else:
-            name = line.strip().split()
-        if not len(name) == 1:
-            raise ParsingError(self.i, "Connection's name must be 'A_point-B_point'")
-        if name[0].find("-") == -1:
-            raise ParsingError(self.i, "Hub's name must contain '-'")
-        if name in self.hub_names:
-            raise ParsingError(self.i, f"There is already a '{name}' hub.")
-        self.hub_names.append(name[0])
-        if options:
-            self.check_connect_options(options)
-        print(options)
+        pass
+        # """Check connection's name, coordinates and options"""
+        # match = re.search(r"\[(.*?)\]", line)
+        # options = []
+        # if match:
+        #     options = match.group(1).strip().split()
+        #     name = (line[:line.index('[')]).strip().split()
+        # else:
+        #     name = line.strip().split()
+        # if not len(name) == 1:
+        #     raise ParsingError(self.i, "Connection's name must be 'A_point-B_point'")
+        # if name[0].find("-") == -1:
+        #     raise ParsingError(self.i, "Hub's name must contain '-'")
+        # if name in self.hub_names:
+        #     raise ParsingError(self.i, f"There is already a '{name}' hub.")
+        # self.hub_names.append(name[0])
+        # if options:
+        #     self.check_connect_options(options)
+        # print(options)
 
 
 if __name__ == "__main__":

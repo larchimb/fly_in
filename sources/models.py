@@ -36,7 +36,7 @@ class Zone():
                  name: str,
                  absc: int,
                  ordinate: int,
-                 max_drones: int = 1,
+                 max_drones: int | None = 1,
                  color: str | None = None,
                  ) -> None:
         self.name = name
@@ -49,12 +49,25 @@ class Zone():
         self.is_priority = False
 
 
+class StartZone(Zone):
+    def __init__(self,
+                 name: str,
+                 absc: int,
+                 ordinate: int,
+                 max_drones: int | None = 1,
+                 color: str | None = None,
+                 ) -> None:
+        super().__init__(name, absc, ordinate, max_drones, color)
+        max_drones = 150
+
+
+
 class BlockedZone(Zone):
     def __init__(self,
                  name: str,
                  absc: int,
                  ordinate: int,
-                 max_drones: int = 1,
+                 max_drones: int | None = 1,
                  color: str | None = None,
                  ) -> None:
         super().__init__(name, absc, ordinate, max_drones, color)
@@ -66,7 +79,7 @@ class RestrictedZone(Zone):
                  name: str,
                  absc: int,
                  ordinate: int,
-                 max_drones: int = 1,
+                 max_drones: int | None = 1,
                  color: str | None = None,
                  ) -> None:
         super().__init__(name, absc, ordinate, max_drones, color)
@@ -78,7 +91,7 @@ class PriorityZone(Zone):
                  name: str,
                  absc: int,
                  ordinate: int,
-                 max_drones: int = 1,
+                 max_drones: int | None = 1,
                  color: str | None = None,
                  ) -> None:
         super().__init__(name, absc, ordinate, max_drones, color)
