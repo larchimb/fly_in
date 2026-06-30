@@ -44,9 +44,6 @@ class Zone():
         self.ordinate = ordinate
         self.max = max_drones
         self.color = color
-        self.is_blocked = False
-        self.is_restricted = False
-        self.is_priority = False
 
 
 class StartZone(Zone):
@@ -58,8 +55,17 @@ class StartZone(Zone):
                  color: str | None = None,
                  ) -> None:
         super().__init__(name, absc, ordinate, max_drones, color)
-        max_drones = 150
 
+
+class EndZone(Zone):
+    def __init__(self,
+                 name: str,
+                 absc: int,
+                 ordinate: int,
+                 max_drones: int | None = 1,
+                 color: str | None = None,
+                 ) -> None:
+        super().__init__(name, absc, ordinate, max_drones, color)
 
 
 class BlockedZone(Zone):
@@ -98,12 +104,11 @@ class PriorityZone(Zone):
         self.is_priority = True
 
 
-class Connection(Zone):
+class Connection():
     def __init__(self,
-                 name: str,
-                 absc: int,
-                 ordinate: int,
-                 max_drones: int = 1,
-                 color: str | None = None,
+                 zone1: Zone,
+                 zone2: Zone,
+                 max_drones: int = 1
                  ) -> None:
-        super().__init__(name, absc, ordinate, max_drones, color)
+        self.co = (zone1, zone2)
+        self.max_drones = max_drones
