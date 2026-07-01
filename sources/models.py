@@ -24,6 +24,10 @@ class HubOptions(Enum):
     MXD = "max_drones"
 
 
+class ConnectionOptions(Enum):
+    CAP = "max_link_capacity"
+
+
 class ZoneTypes(Enum):
     NOR = "normal"
     BLO = "blocked"
@@ -106,9 +110,13 @@ class PriorityZone(Zone):
 
 class Connection():
     def __init__(self,
+                 name: str,
                  zone1: Zone,
                  zone2: Zone,
-                 max_drones: int = 1
+                 capacity: int = 1
                  ) -> None:
-        self.co = (zone1, zone2)
-        self.max_drones = max_drones
+        self.name = name
+        self.zone1 = zone1
+        self.zone2 = zone2
+        self.co = {zone1.name, zone2.name}
+        self.capacity = capacity

@@ -1,5 +1,6 @@
 from models import ParsingError, HubTypes, HubOptions, ZoneTypes, Zone
 from models import StartZone, EndZone, BlockedZone, RestrictedZone, PriorityZone
+from models import ConnectionOptions, Connection
 import re
 from typing import Any
 
@@ -7,8 +8,9 @@ from typing import Any
 class Parser():
     def __init__(self) -> None:
         self.rows: list[str] = []
-        self.connection_names: list[set[str]] = []
         self.hubs: dict[str, Zone] = {}
+        self.connections: list[Connection] = []
+        self.nb_connect = 0
         self.nb_starts = 0
         self.nb_ends = 0
         self.drones = 0
@@ -71,6 +73,8 @@ class Parser():
 
     def check_line(self, line: str) -> None:
         """Check if datas in the line are correctly writted"""
+        self.is_start = False
+        self.is_end = False
         if not line:
             return
         key, _, rest_line = line.strip().partition(": ")
@@ -86,10 +90,12 @@ class Parser():
                 self.nb_starts += 1
                 if self.nb_starts > 1:
                     raise ParsingError(self.i, "There is too many start points")
+                self.is_start = True
             elif key == HubTypes.END.value:
                 self.nb_ends += 1
                 if self.nb_ends > 1:
                     raise ParsingError(self.i, "There is too many end points")
+                self.is_end = True
             self.check_hub(rest_line)
 
     def check_hub(self, line: str) -> None:
@@ -121,12 +127,13 @@ class Parser():
             if (int_abscissa == self.hubs[hub].absc
             and int_ordinate == self.hubs[hub].ordinate):
                 raise ParsingError(self.i, f"There is already a hub to this coordinates.")
-
+        parsed_options = {}
         if options:
-            self.check_hub_options(options)
-        self.add_hub(name, int_abscissa, int_ordinate, options)
+            parsed_options = self.check_hub_options(options)
+        self.add_hub(name, int_abscissa, int_ordinate, parsed_options)
 
-    def check_hub_options(self, options: list[str]) -> None:
+    def check_hub_options(self, options: list[str]) -> dict[str, str | int]:
+        dic_option = {}
         if len(options) > 3:
             raise ParsingError(self.i, "too many options, max 3")
         max_key = 0
@@ -142,10 +149,12 @@ class Parser():
                                    f"'{key}', options availables are 'color', 'zone' and 'max_drones'")
             elif key == HubOptions.COL.value:
                 color_key += 1
+                dic_option[key] = value
                 if not value.isalpha():
                     raise ParsingError(self.i, "color must be an alphabetic string")
             elif key == HubOptions.ZON.value:
                 zone_key += 1
+                dic_option[key] = value
                 if value not in [e.value for e in ZoneTypes]:
                     raise ParsingError(self.i,
                                        f"'{value}', options availables are 'normal', "
@@ -153,32 +162,30 @@ class Parser():
             elif key == HubOptions.MXD.value:
                 max_key += 1
                 try:
-                    value = int(value)
-                    if value < 0:
+                    int_value = int(value)
+                    if int_value <= 0:
                         raise ParsingError(self.i, "max_drones must be a positive integer")
+                    dic_option[key] = int_value
                 except Exception:
                     raise ParsingError(self.i, "max_drones must be a positive integer")
 
             if color_key > 1 or zone_key > 1 or max_key > 1:
                 raise ParsingError(self.i, "put each option once")
+        return dic_option
 
-    def add_hub(self, name: str, absc: int, ord: int, options: list[str]) -> None:
+    def add_hub(self, name: str, absc: int, ord: int, dic_option: dict[str, Any]) -> None:
         """Add the hub to the dictionnary with the good specification"""
-        dic_option = {}
         color: str | None = None
         max_drone: int | None = 1
         zone: str | None = None
-        if options:
-            for option in options:
-                key, value = option.split("=")
-                dic_option[key] = value
+        if dic_option:
             color = dic_option.get("color")
             max_drone = dic_option.get(HubOptions.MXD.value)
             zone = dic_option.get(HubOptions.ZON.value)
 
-        if zone == HubTypes.STR.value:
+        if self.is_start:
             self.hubs[name] = StartZone(name, absc, ord, self.drones, color)
-        elif zone == HubTypes.END.value:
+        elif self.is_end:
             self.hubs[name] = EndZone(name, absc, ord, self.drones, color)
         elif zone == ZoneTypes.BLO.value:
             self.hubs[name] = BlockedZone(name, absc, ord, max_drone, color)
@@ -191,55 +198,41 @@ class Parser():
 
     def check_connection(self, line: str) -> None:
         """Check connection's name, coordinates and options"""
-
-
-
-
-
-
-
-
         matches = re.findall(r"\[.*?\]", line)
-        options = []
+        capacity: int | None = 1
         if matches and line.index(']') != len(line.strip()) - 1:
             raise ParsingError(self.i, "No text allowed after options block '[]'")
         if matches:
-            options = matches[0][1:-1].strip().split()
-            if len(options) > 1:
-                raise ParsingError(self.i, "only one option available for a connection")
-            element = (line[:line.index('[')]).strip().split("=")
-            if element[0] != HubOptions.MXD.value:
-                raise ParsingError(self.i, "only one option available for a connection")
-
-
+            capacity = self.check_connect_options(matches)
+            zones = (line[:line.index('[')]).strip().split("-")
         else:
-            element = line.strip().split()
+            zones = line.strip().split("-")
+        if len(zones) != 2:
+            raise ParsingError(self.i, "connection must follow 'zone1-zone2' model")
+        zone1 = zones[0]
+        zone2 = zones[1]
+        pair = {zone1, zone2}
+        if not all(e in self.hubs for e in [zone1, zone2]) or zone1 == zone2:
+            raise ParsingError(self.i, "a connection must be beetween 2 differentes zones")
+        if any(pair == c.co for c in self.connections):
+            raise ParsingError(self.i, "There is already this connection")
+        name = HubTypes.CON.value + "_" + str(self.nb_connect)
+        self.connections.append(
+            Connection(name, self.hubs[zone1], self.hubs[zone2], capacity))
 
-
-
-
-
-
-        match = re.search(r"\[(.*?)\]", line)
-        options = []
-        if match:
-            options = match.group(1).strip().split()
-            name = (line[:line.index('[')]).strip().split()
-        else:
-            name = line.strip().split()
-        if not len(name) == 1:
-            raise ParsingError(self.i, "Connection's name must be 'A_point-B_point'")
-        if name[0].find("-") == -1:
-            raise ParsingError(self.i, "Hub's name must contain '-'")
-        if name in [e for e in self.hubs.keys()]:
-            raise ParsingError(self.i, f"There is already a '{name}' hub.")
-        self.hub_names.append(name[0])
-        if options:
-            self.check_connect_options(options)
-        print(options)
-
-    def check_connect_options(self, options: list[str]) -> None:
-        pass
+    def check_connect_options(self, matches: list[str]) -> int:
+        if len(matches) > 1:
+            raise ParsingError(self.i, "only one option available for a connection")
+        options = matches[0][1:-1].strip().split("=")
+        if options[0] != ConnectionOptions.CAP.value:
+            raise ParsingError(self.i, "only option 'max_link_capacity' available for a connection")
+        try:
+            int_value = int(options[1])
+            if int_value <= 0:
+                raise ParsingError(self.i, "a connection must have at least 1 of capacity")
+        except Exception:
+            raise ParsingError(self.i, "a connection must have at least 1 of capacity")
+        return int_value
 
 
 if __name__ == "__main__":

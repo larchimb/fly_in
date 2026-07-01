@@ -7,9 +7,9 @@
 [x] Valider le nom du hub (pas de -), les coordonnées (entiers), l'unicité nom + coords (check_hub)
 [x] Valider les options de hub : zone, color, max_drones, pas de doublon, max 3 options (check_hub_options)
 [x] Valider le format de connection (présence du -) et ses options de base (check_connection)
-[ ] Corriger add_hub() : vide (pass), doit instancier la bonne classe et stocker dans self.hubs
-[ ] Corriger check_hub_options() : ne transmet pas les options parsées à add_hub()
-[ ] Implémenter check_connect_options() : référencée mais inexistante (valider max_link_capacity)
+[x] Corriger add_hub() : instancie la bonne classe (StartZone, EndZone, BlockedZone, etc.) et stocke dans self.hubs
+[x] Corriger check_hub_options() : ne transmet pas les options parsées à add_hub() (add_hub re-parse lui-même, duplication)
+[ ] Implémenter check_connect_options() : existe mais vide (pass), doit valider max_link_capacity
 [ ] Corriger check_connection() : utilise self.hub_names qui n'existe pas (devrait être self.connection_names)
 [ ] Vérifier dans check_connection() que les deux zones référencées existent dans self.hubs
 [ ] Corriger la détection de doublons de connections (a-b == b-a)
@@ -20,9 +20,9 @@
 [x] Enums HubTypes, HubOptions, ZoneTypes
 [x] Classe Zone de base avec name, absc, ordinate, max_drones, color
 [x] Sous-classes BlockedZone, RestrictedZone, PriorityZone
-[ ] Corriger la classe Connection : hérite de Zone alors qu'elle devrait être indépendante,
-    ajouter max_link_capacity, zone1, zone2
-[ ] Ajouter StartZone et EndZone (ou les distinguer autrement dans Zone)
+[x] Ajouter StartZone et EndZone
+[~] Corriger la classe Connection : n'hérite plus de Zone (ok), a zone1/zone2 via tuple self.co,
+    mais attribut nommé max_drones au lieu de max_link_capacity, et zones pas en attributs séparés
 [ ] Ajouter une classe Graph contenant les zones et connections, avec méthodes de navigation
 [ ] Ajouter une classe Drone avec identifiant, position courante, état, chemin assigné
 
