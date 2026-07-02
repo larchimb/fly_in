@@ -158,10 +158,12 @@ class Map():
         self.connects = connections
         self.drones: list[Drone] = []
         self.create_drones_list(nb_drones)
+        self.path_finder()
         self.turn_moved = 0
         self.total_moved = 0
 
     def create_drones_list(self, nb_drones: int) -> None:
+        """Create the drones list"""
         for i in range(1, nb_drones + 1):
             self.drones.append(Drone("D{i}", self.start, DroneState.ODE.value))
 
@@ -178,4 +180,15 @@ class Map():
                 break
             hub_passed.add(zone)
 
+            for neighbor in zone.hubs_connected:
+                if neighbor in hub_passed:
+                    continue
+                new_cost = zone.path_to_end + neighbor.cost
+                if new_cost < neighbor.path_to_end:
+                    neighbor.path_to_end = new_cost
+
+
+    def drones_launcher(self) -> None:
+        for d in self.drones:
+            
 

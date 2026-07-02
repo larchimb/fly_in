@@ -9,11 +9,11 @@
 [x] Valider le format de connection (présence du -) et ses options de base (check_connection)
 [x] Corriger add_hub() : instancie la bonne classe (StartZone, EndZone, BlockedZone, etc.) et stocke dans self.hubs
 [x] Corriger check_hub_options() : ne transmet pas les options parsées à add_hub() (add_hub re-parse lui-même, duplication)
-[ ] Implémenter check_connect_options() : existe mais vide (pass), doit valider max_link_capacity
-[ ] Corriger check_connection() : utilise self.hub_names qui n'existe pas (devrait être self.connection_names)
-[ ] Vérifier dans check_connection() que les deux zones référencées existent dans self.hubs
-[ ] Corriger la détection de doublons de connections (a-b == b-a)
-[ ] Supprimer le print(options) de debug dans check_connection()
+[x] Implémenter check_connect_options() : existe mais vide (pass), doit valider max_link_capacity
+[x] Corriger check_connection() : utilise self.hub_names qui n'existe pas (devrait être self.connection_names)
+[x] Vérifier dans check_connection() que les deux zones référencées existent dans self.hubs
+[x] Corriger la détection de doublons de connections (a-b == b-a)
+[x] Supprimer le print(options) de debug dans check_connection()
 
 --- MODÈLES (partiellement fait) ---
 [x] ParsingError avec numéro de ligne et message clair
@@ -21,10 +21,10 @@
 [x] Classe Zone de base avec name, absc, ordinate, max_drones, color
 [x] Sous-classes BlockedZone, RestrictedZone, PriorityZone
 [x] Ajouter StartZone et EndZone
-[~] Corriger la classe Connection : n'hérite plus de Zone (ok), a zone1/zone2 via tuple self.co,
+[x] Corriger la classe Connection : n'hérite plus de Zone (ok), a zone1/zone2 via tuple self.co,
     mais attribut nommé max_drones au lieu de max_link_capacity, et zones pas en attributs séparés
-[ ] Ajouter une classe Graph contenant les zones et connections, avec méthodes de navigation
-[ ] Ajouter une classe Drone avec identifiant, position courante, état, chemin assigné
+[x] Ajouter une classe Graph contenant les zones et connections, avec méthodes de navigation
+[x] Ajouter une classe Drone avec identifiant, position courante, état, chemin assigné
 
 --- ALGORITHME DE SIMULATION ---
 [ ] Implémenter le pathfinding (Dijkstra/BFS pondéré selon les types de zones)
