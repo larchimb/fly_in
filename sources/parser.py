@@ -1,6 +1,6 @@
 from models import ParsingError, HubTypes, HubOptions, ZoneTypes, Zone
 from models import StartZone, EndZone, BlockedZone, RestrictedZone, PriorityZone
-from models import ConnectionOptions, Connection
+from models import ConnectionOptions, Connection, Map
 import re
 from typing import Any
 
@@ -8,7 +8,7 @@ from typing import Any
 class Parser():
     def __init__(self) -> None:
         self.rows: list[str] = []
-        self.hubs: dict[str, Zone] = {}
+        self.hubs: dict[str, Zone | StartZone | EndZone] = {}
         self.connections: list[Connection] = []
         self.nb_connect = 0
         self.nb_starts = 0
@@ -184,9 +184,9 @@ class Parser():
             zone = dic_option.get(HubOptions.ZON.value)
 
         if self.is_start:
-            self.hubs[name] = StartZone(name, absc, ord, self.drones, color)
+            self.hubs["start"] = StartZone(name, absc, ord, self.drones, color)
         elif self.is_end:
-            self.hubs[name] = EndZone(name, absc, ord, self.drones, color)
+            self.hubs["end"] = EndZone(name, absc, ord, self.drones, color)
         elif zone == ZoneTypes.BLO.value:
             self.hubs[name] = BlockedZone(name, absc, ord, max_drone, color)
         elif zone == ZoneTypes.RES.value:
@@ -219,6 +219,7 @@ class Parser():
         name = HubTypes.CON.value + "_" + str(self.nb_connect)
         self.connections.append(
             Connection(name, self.hubs[zone1], self.hubs[zone2], capacity))
+        self.nb_connect += 1
 
     def check_connect_options(self, matches: list[str]) -> int:
         if len(matches) > 1:
@@ -233,6 +234,16 @@ class Parser():
         except Exception:
             raise ParsingError(self.i, "a connection must have at least 1 of capacity")
         return int_value
+
+    def map_builder(self) -> Map:
+        """Build the map"""
+        return Map(self.hubs["start"], self.hubs["end"], self.hubs, self.connections, self.drones)
+
+    def connections_builder(self) -> None:
+        """Build the bidirectional adjacency list of each zone from the connections"""
+        for c in self.connections :
+            c.zone1.hubs_connected.add(c.zone2)
+            c.zone2.hubs_connected.add(c.zone1)
 
 
 if __name__ == "__main__":
