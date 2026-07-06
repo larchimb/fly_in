@@ -1,0 +1,13 @@
+[project]
+name = "fly-in"
+version = "0.1.0"
+description = "Drone traffic simulation across a hub/connection network"
+requires-python = ">=3.13"
+
+dependencies = [
+    "pygame",
+]
+
+[tool.mypy]
+python_version = "3.13"
+strict = true

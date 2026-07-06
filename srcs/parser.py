@@ -1,6 +1,7 @@
-from models import ParsingError, HubTypes, HubOptions, ZoneTypes, Zone
-from models import StartZone, EndZone, BlockedZone, RestrictedZone, PriorityZone
-from models import ConnectionOptions, Connection, Map
+from srcs.models import ParsingError, HubTypes, HubOptions, ZoneTypes, Zone
+from srcs.models import StartZone, EndZone, BlockedZone, RestrictedZone, PriorityZone
+from srcs.models import ConnectionOptions, Connection
+from srcs.map import Map
 import re
 from typing import Any
 
@@ -184,9 +185,9 @@ class Parser():
             zone = dic_option.get(HubOptions.ZON.value)
 
         if self.is_start:
-            self.hubs["start"] = StartZone(name, absc, ord, self.drones, color)
+            self.hubs[name] = StartZone(name, absc, ord, self.drones, color)
         elif self.is_end:
-            self.hubs["end"] = EndZone(name, absc, ord, self.drones, color)
+            self.hubs[name] = EndZone(name, absc, ord, self.drones, color)
         elif zone == ZoneTypes.BLO.value:
             self.hubs[name] = BlockedZone(name, absc, ord, max_drone, color)
         elif zone == ZoneTypes.RES.value:
@@ -212,7 +213,9 @@ class Parser():
         zone1 = zones[0]
         zone2 = zones[1]
         pair = {zone1, zone2}
-        if not all(e in self.hubs for e in [zone1, zone2]) or zone1 == zone2:
+        if not all(e in self.hubs for e in [zone1, zone2]):
+            raise ParsingError(self.i, "one of the zone isn't define")
+        if zone1 == zone2:
             raise ParsingError(self.i, "a connection must be beetween 2 differentes zones")
         if any(pair == c.co for c in self.connections):
             raise ParsingError(self.i, "There is already this connection")
@@ -237,18 +240,12 @@ class Parser():
 
     def map_builder(self) -> Map:
         """Build the map"""
-        return Map(self.hubs["start"], self.hubs["end"], self.hubs, self.connections, self.drones)
+        start = next(z for z in self.hubs.values() if isinstance(z, StartZone))
+        end = next(z for z in self.hubs.values() if isinstance(z, EndZone))
+        return Map(start, end, self.hubs, self.connections, self.drones)
 
     def connections_builder(self) -> None:
         """Build the bidirectional adjacency list of each zone from the connections"""
         for c in self.connections :
             c.zone1.hubs_connected.add(c.zone2)
             c.zone2.hubs_connected.add(c.zone1)
-
-
-if __name__ == "__main__":
-    try:
-        parser = Parser()
-        parser.check_file("test.txt")
-    except (ParsingError, Exception) as e:
-        print(e)

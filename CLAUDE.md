@@ -6,7 +6,11 @@ Ne pas lire, analyser ou prendre en compte les éléments suivants :
 - Dossier `maps/`
 - Fichier `.env`
 - Fichier `maps.tar.gz`
-- Fichier `requirements.txt`
+- Fichier `.mypy_cache`
+- Fichier `.vscode`
+- Fichier `.mypy_cache`
+- Fichier `biblio.txt`
+
 
 ## Comportement général
 
