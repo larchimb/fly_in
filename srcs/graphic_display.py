@@ -4,7 +4,7 @@ import pygame as py
 from models import (
     Zone, StartZone, EndZone, BlockedZone, RestrictedZone, PriorityZone,
 )
-from map import Map
+from display import Map
 from parser import Parser
 
 BACKGROUND = (18, 18, 22)

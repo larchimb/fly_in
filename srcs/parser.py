@@ -1,7 +1,7 @@
 from srcs.models import ParsingError, HubTypes, HubOptions, ZoneTypes, Zone
 from srcs.models import StartZone, EndZone, BlockedZone, RestrictedZone, PriorityZone
 from srcs.models import ConnectionOptions, Connection
-from srcs.map import Map
+from srcs.display import Map
 import re
 from typing import Any
 
@@ -196,6 +196,7 @@ class Parser():
             self.hubs[name] = PriorityZone(name, absc, ord, max_drone, color)
         else:
             self.hubs[name] = Zone(name, absc, ord, max_drone, color)
+        print([self.hubs[name].name,self.hubs[name].color])
 
     def check_connection(self, line: str) -> None:
         """Check connection's name, coordinates and options"""

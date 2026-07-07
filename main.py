@@ -1,7 +1,7 @@
 import sys
 from srcs.parser import Parser
 from srcs.models import ParsingError
-from srcs.map import Map, MapDisplay
+from srcs.display import Map, MapDisplay
 
 def main() -> None:
 
