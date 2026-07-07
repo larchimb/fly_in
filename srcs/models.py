@@ -19,6 +19,14 @@ class DisplayError(Exception):
         return (f"[DISPLAY ERROR]: " + super().__str__())
 
 
+class MapError(Exception):
+    def __init__(self, message: str) -> None:
+        super().__init__(message)
+
+    def __str__(self) -> str:
+        return (f"[MAP ERROR]: " + super().__str__())
+
+
 class HubTypes(Enum):
     STR = "start_hub"
     END = "end_hub"

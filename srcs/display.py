@@ -1,4 +1,4 @@
-from srcs.models import Zone, StartZone, EndZone, Connection, Drone, DroneState, Colors, DisplayError
+from srcs.models import MapError, Zone, StartZone, EndZone, BlockedZone, Connection, Drone, DroneState, Colors, DisplayError
 import pygame as py
 from enum import Enum
 
@@ -30,7 +30,8 @@ class Map():
         hub_passed: set[Zone] = set()
         self.end.path_to_end = 0
         remaining = set(self.hubs.values())
-
+        if isinstance(self.end, BlockedZone):
+            raise MapError("The end is a blocked hub")
         while remaining:
             zone = min(remaining, key=lambda z: z.path_to_end)
             remaining.remove(zone)
@@ -41,6 +42,9 @@ class Map():
             for neighbor in zone.hubs_connected:
                 if neighbor in hub_passed:
                     continue
+                if isinstance(neighbor, BlockedZone):
+                    remaining.remove(neighbor)
+
                 new_cost = zone.path_to_end + neighbor.cost
                 if new_cost < neighbor.path_to_end:
                     neighbor.path_to_end = new_cost
@@ -90,8 +94,16 @@ class MapDisplay():
                 )
             py.draw.circle(self.screen, hub.color.value, place, self.hub_radius)
 
-
-        # py.draw.circle(self.screen , Colors.BLUE.value, (100, 100), self.drone_radius)
+        for connect in self.map.connects:
+            start_pos = (
+                ((connect.zone1.absc - self.min_x) * self.gap + self.margin),
+                ((connect.zone1.ordinate - self.min_y) * self.gap + self.margin)
+            )
+            end_pos = (
+                ((connect.zone2.absc - self.min_x) * self.gap + self.margin),
+                ((connect.zone2.ordinate - self.min_y) * self.gap + self.margin)
+            )
+            py.draw.line(self.screen, connect.color.value, start_pos, end_pos)
         py.display.flip()
         while is_active:
             for event in py.event.get():
@@ -100,6 +112,7 @@ class MapDisplay():
                 elif event.type == py.KEYDOWN:
                     if event.key == py.K_ESCAPE:
                         is_active = False
+            self.clock.tick(60)
         py.quit()
 
     def drones_launcher(self) -> None:
