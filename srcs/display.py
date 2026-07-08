@@ -44,6 +44,7 @@ class Map():
                     continue
                 if isinstance(neighbor, BlockedZone):
                     remaining.remove(neighbor)
+                    continue
 
                 new_cost = zone.path_to_end + neighbor.cost
                 if new_cost < neighbor.path_to_end:
@@ -54,16 +55,19 @@ class MapDisplay():
     """Static pygame view of a Map: colored hub nodes, connections, legend."""
     def __init__(self, map: Map) -> None:
         self.map = map
+        py.init()
         self.initialize_settings()
         self.initialize_screen()
 
     def initialize_settings(self) -> None:
         """Initializing settings for the display"""
-        self.margin = 40
+        self.margin = 100
+        self.legend = 200
         self.hub_radius = 30
         self.drone_radius = 10
-        self.gap = 250
+        self.gap = 150
         self.clock = py.time.Clock()
+        self.font = py.font.SysFont(None, 20)
 
         abscissas = [z.absc for z in self.map.hubs.values()]
         ordinates = [z.ordinate for z in self.map.hubs.values()]
@@ -73,26 +77,30 @@ class MapDisplay():
         self.max_y = max(ordinates)
 
         self.width = (self.max_x - self.min_x) * self.gap + 2 * self.margin
-        self.height = (self.max_y - self.min_y) * self.gap + 2 * self.margin
+        self.height = (
+            (self.max_y - self.min_y) * self.gap + 2 * self.margin + self.legend
+            )
         self.size = (self.width, self.height)
         if self.width > 3500:
+            print(self.width)
             raise DisplayError("Width is too large for this map")
         if self.height > 2000:
             raise DisplayError("Height is too high for this map")
 
     def initialize_screen(self) -> None:
         """Initialize the empty screen"""
-        py.init()
         self.screen = py.display.set_mode(self.size)
         py.display.set_caption("Fly_in")
         is_active = True
 
         for hub in self.map.hubs.values():
-            place = (
-                (hub.absc - self.min_x) * self.gap + self.margin,
-                (hub.ordinate - self.min_y) * self.gap + self.margin
-                )
+            x = (hub.absc - self.min_x) * self.gap + self.margin
+            y = (hub.ordinate - self.min_y) * self.gap + self.margin
+            place = (x, y)
             py.draw.circle(self.screen, hub.color.value, place, self.hub_radius)
+            label = self.font.render(hub.name, True, Colors.WHITE.value)
+            label_pos = (x, y + self.hub_radius + 12)
+            self.screen.blit(label, label.get_rect(center=label_pos))
 
         for connect in self.map.connects:
             start_pos = (
@@ -105,6 +113,7 @@ class MapDisplay():
             )
             py.draw.line(self.screen, connect.color.value, start_pos, end_pos)
         py.display.flip()
+
         while is_active:
             for event in py.event.get():
                 if event.type == py.QUIT :
@@ -116,5 +125,6 @@ class MapDisplay():
         py.quit()
 
     def drones_launcher(self) -> None:
+
         for d in self.map.drones:
             pass

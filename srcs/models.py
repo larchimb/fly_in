@@ -1,5 +1,4 @@
 from enum import Enum
-from abc import abstractmethod, ABC
 
 
 class ParsingError(Exception):
@@ -52,7 +51,7 @@ class ZoneTypes(Enum):
 
 
 class Colors(Enum):
-    BLACK = (20, 20, 20)
+    BLACK = (40, 40, 40)
     RED = (220, 60, 60)
     GREEN = (60, 190, 100)
     YELLOW = (230, 200, 50)

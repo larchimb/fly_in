@@ -10,6 +10,7 @@ Ne pas lire, analyser ou prendre en compte les éléments suivants :
 - Fichier `.vscode`
 - Fichier `.mypy_cache`
 - Fichier `biblio.txt`
+- Fichier `srcs/graphic_display.py`
 
 
 ## Comportement général

@@ -154,6 +154,10 @@ class Parser():
                 if not value.isalpha():
                     raise ParsingError(self.i, "color must be an alphabetic string")
             elif key == HubOptions.ZON.value:
+                if self.is_start or self.is_end:
+                    raise ParsingError(self.i,
+                                       "Start and end can't be other kind of zone"
+                                       )
                 zone_key += 1
                 dic_option[key] = value
                 if value not in [e.value for e in ZoneTypes]:
@@ -196,7 +200,6 @@ class Parser():
             self.hubs[name] = PriorityZone(name, absc, ord, max_drone, color)
         else:
             self.hubs[name] = Zone(name, absc, ord, max_drone, color)
-        print([self.hubs[name].name,self.hubs[name].color])
 
     def check_connection(self, line: str) -> None:
         """Check connection's name, coordinates and options"""
@@ -243,6 +246,7 @@ class Parser():
         """Build the map"""
         start = next(z for z in self.hubs.values() if isinstance(z, StartZone))
         end = next(z for z in self.hubs.values() if isinstance(z, EndZone))
+        self.connections_builder()
         return Map(start, end, self.hubs, self.connections, self.drones)
 
     def connections_builder(self) -> None:

@@ -2,13 +2,13 @@
 
 nb_drones: 3
 
-start_hub: start 0 0 [zone=blocked max_drones=2]
+start_hub: start 0 0 [max_drones=2]
 hub: path_a 2 2 [zone=blocked]
 hub: path_b 2 -1 [zone=restricted]
 hub: path_c 2 3 [zone=blocked]
 hub: path_d 1 -1 [zone=priority]
 hub: junction 1 -2 [zone=priority]
-end_hub: goal 3 0 [zone=blocked color=lolilo max_drones=3]
+end_hub: goal 3 0 [max_drones=3]
 
 connection: start-junction
 connection: junction-path_a

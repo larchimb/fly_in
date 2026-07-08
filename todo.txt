@@ -27,10 +27,10 @@
 [x] Ajouter une classe Drone avec identifiant, position courante, état, chemin assigné
 
 --- ALGORITHME DE SIMULATION ---
-[ ] Implémenter le pathfinding (Dijkstra/BFS pondéré selon les types de zones)
-[ ] Gérer les coûts : normal = 1 tour, restricted = 2 tours, priority = 1 tour (prioritaire), blocked = inaccessible
-[ ] Implémenter les contraintes de capacité des zones (max_drones)
-[ ] Implémenter les contraintes de capacité des connections (max_link_capacity)
+[x] Implémenter le pathfinding (Dijkstra/BFS pondéré selon les types de zones)
+[x] Gérer les coûts : normal = 1 tour, restricted = 2 tours, priority = 1 tour (prioritaire), blocked = inaccessible
+[x] Implémenter les contraintes de capacité des zones (max_drones)
+[x] Implémenter les contraintes de capacité des connections (max_link_capacity)
 [ ] Gérer le mouvement simultané : les drones qui quittent libèrent la capacité au même tour
 [ ] Gérer les zones restricted : drone en transit 2 tours, doit arriver à destination, ne peut pas attendre sur la connection
 [ ] Implémenter la gestion des conflits et la prévention des deadlocks
@@ -48,8 +48,8 @@
 [ ] (Optionnel) Interface graphique
 
 --- INFRASTRUCTURE ---
-[ ] Créer main.py comme point d'entrée (prend le fichier de carte en argument)
-[ ] Créer un Makefile avec les règles : install, run, debug, clean, lint, lint-strict
+[x] Créer main.py comme point d'entrée (prend le fichier de carte en argument)
+[x] Créer un Makefile avec les règles : install, run, debug, clean, lint, lint-strict
 [ ] Créer un .gitignore (exclure __pycache__, .mypy_cache, .venv, etc.)
 [ ] Passer flake8 sans erreur sur tout le projet
 [ ] Passer mypy sans erreur (type hints sur toutes les fonctions et variables)
