@@ -1,4 +1,4 @@
-from srcs.models import MapError, Zone, StartZone, EndZone, BlockedZone, Connection, Drone, DroneState, Colors, DisplayError
+from srcs.models import MapError, Zone, StartZone, EndZone, BlockedZone, PriorityZone, Connection, Drone, Colors, DisplayError
 import pygame as py
 from enum import Enum
 
@@ -15,6 +15,7 @@ class Map():
         self.hubs = hubs
         self.connects = connections
         self.drones: list[Drone] = []
+        self.arrived_drones: list[Drone] = []
         self.create_drones_list(nb_drones)
         self.path_finder()
         self.turn_moved = 0
@@ -23,7 +24,8 @@ class Map():
     def create_drones_list(self, nb_drones: int) -> None:
         """Create the drones list"""
         for i in range(1, nb_drones + 1):
-            self.drones.append(Drone("D{i}", self.start))
+            self.drones.append(Drone(f"D{i}", self.start))
+            self.start.drone_in += 1
 
     def path_finder(self) -> None:
         """Compute, via Dijkstra from 'end', the minimal cost for each zone to reach the end"""
@@ -44,11 +46,14 @@ class Map():
                     continue
                 if isinstance(neighbor, BlockedZone):
                     remaining.remove(neighbor)
+                    hub_passed.add(neighbor)
                     continue
 
                 new_cost = zone.path_to_end + neighbor.cost
                 if new_cost < neighbor.path_to_end:
                     neighbor.path_to_end = new_cost
+        if self.start.path_to_end == float("inf"):
+            raise Exception("there is no path from start to end")
 
 
 class MapDisplay():
@@ -125,6 +130,27 @@ class MapDisplay():
         py.quit()
 
     def drones_launcher(self) -> None:
-
+        """Make the drones advance on the map"""
         for d in self.map.drones:
-            pass
+            neighbors = [t for t in d.pos.hubs_connected if not isinstance(t, BlockedZone)]
+            p_list = [t for t in d.pos.hubs_connected if isinstance(t, PriorityZone)]
+            if p_list:
+                target = min(p_list, key=lambda z: z.path_to_end)
+            else:
+                target = min(
+                    [t for t in d.pos.hubs_connected],
+                    key=lambda z: z.path_to_end
+                    )
+
+    def pick_target(self, targets: list[Zone], current_cost: int) -> Zone | None:
+        """Find the closest free hub to the end"""
+        targets = [t for t in targets if t.path_to_end < current_cost]
+        for zone in sorted(targets, key=lambda z: z.path_to_end):
+            if zone.capacity and zone.capacity < zone.drone_in:
+                return zone
+        return None
+
+    def move_drone(self, start: Zone, goal: Zone) -> None:
+        """Make a drone move from a zone to another one"""
+        pass
+

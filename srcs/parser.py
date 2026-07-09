@@ -178,7 +178,7 @@ class Parser():
                 raise ParsingError(self.i, "put each option once")
         return dic_option
 
-    def add_hub(self, name: str, absc: int, ord: int, dic_option: dict[str, Any]) -> None:
+    def add_hub(self, name: str, absc: int, ord: float, dic_option: dict[str, Any]) -> None:
         """Add the hub to the dictionnary with the good specification"""
         color: str | None = None
         max_drone: int | None = 1
@@ -186,10 +186,13 @@ class Parser():
         if dic_option:
             color = dic_option.get("color")
             max_drone = dic_option.get(HubOptions.MXD.value)
+            if not max_drone:
+                max_drone = 1
             zone = dic_option.get(HubOptions.ZON.value)
 
         if self.is_start:
             self.hubs[name] = StartZone(name, absc, ord, self.drones, color)
+            self.start = self.hubs[name]
         elif self.is_end:
             self.hubs[name] = EndZone(name, absc, ord, self.drones, color)
         elif zone == ZoneTypes.BLO.value:

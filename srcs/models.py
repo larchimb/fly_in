@@ -64,15 +64,15 @@ class Colors(Enum):
 class Zone():
     def __init__(self,
                  name: str,
-                 absc: int,
-                 ordinate: int,
+                 absc: float,
+                 ordinate: float,
                  max_drones: int | None = 1,
                  color: str | None = Colors.WHITE.name,
                  ) -> None:
         self.name = name
         self.absc = absc
         self.ordinate = ordinate
-        self.max = max_drones
+        self.capacity = max_drones
         self.cost = 1
         self.drone_in = 0
         self.path_to_end: float = float("inf")
@@ -86,8 +86,8 @@ class Zone():
 class StartZone(Zone):
     def __init__(self,
                  name: str,
-                 absc: int,
-                 ordinate: int,
+                 absc: float,
+                 ordinate: float,
                  max_drones: int | None = 1,
                  color: str | None = Colors.GREEN.name,
                  ) -> None:
@@ -101,8 +101,8 @@ class StartZone(Zone):
 class EndZone(Zone):
     def __init__(self,
                  name: str,
-                 absc: int,
-                 ordinate: int,
+                 absc: float,
+                 ordinate: float,
                  max_drones: int | None = 1,
                  color: str | None = Colors.BLUE.name,
                  ) -> None:
@@ -116,8 +116,8 @@ class EndZone(Zone):
 class BlockedZone(Zone):
     def __init__(self,
                  name: str,
-                 absc: int,
-                 ordinate: int,
+                 absc: float,
+                 ordinate: float,
                  max_drones: int | None = 1,
                  color: str | None = Colors.RED.name,
                  ) -> None:
@@ -133,8 +133,8 @@ class BlockedZone(Zone):
 class RestrictedZone(Zone):
     def __init__(self,
                  name: str,
-                 absc: int,
-                 ordinate: int,
+                 absc: float,
+                 ordinate: float,
                  max_drones: int | None = 1,
                  color: str | None = Colors.YELLOW.name,
                  ) -> None:
@@ -150,8 +150,8 @@ class RestrictedZone(Zone):
 class PriorityZone(Zone):
     def __init__(self,
                  name: str,
-                 absc: int,
-                 ordinate: int,
+                 absc: float,
+                 ordinate: float,
                  max_drones: int | None = 1,
                  color: str | None = Colors.MAGENTA.name,
                  ) -> None:
@@ -163,38 +163,35 @@ class PriorityZone(Zone):
             self.color = Colors[color.upper()]
 
 
-class Connection():
+class Connection(Zone):
     def __init__(self,
                  name: str,
                  zone1: Zone,
                  zone2: Zone,
                  capacity: int = 1
                  ) -> None:
-        self.name = name
         self.zone1 = zone1
         self.zone2 = zone2
-        self.color = Colors.WHITE
+        color = Colors.WHITE.name
+        absc = (zone1.absc + zone2.absc) / 2
+        ordinate = (zone1.ordinate + zone2.ordinate) / 2
+        super().__init__(name, absc, ordinate, capacity, color)
         self.co = {zone1.name, zone2.name}
-        self.capacity = capacity
 
 
-class DroneState(Enum):
-    ODE = "on_delivery"
-    TER = "Terminated"
 
 
 class Drone():
     def __init__(self,
                  id: str,
                  position: Zone | Connection,
-                 state: DroneState = DroneState.ODE,
                  ) -> None:
         self.id = id
         self.pos = position
-        self.state = state
         self.moves = 0
         self.path: list[Zone | Connection] = []
-        self.path_to_end: int = 0
+        self.target: Zone
+
 
 
 
