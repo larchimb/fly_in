@@ -117,6 +117,7 @@ class MapDisplay():
                 ((connect.zone2.ordinate - self.min_y) * self.gap + self.margin)
             )
             py.draw.line(self.screen, connect.color.value, start_pos, end_pos)
+        self.draw_legend()
         py.display.flip()
 
         while is_active:
@@ -128,6 +129,20 @@ class MapDisplay():
                         is_active = False
             self.clock.tick(60)
         py.quit()
+
+    def draw_legend(self) -> None:
+        """Draw the legend on the screen"""
+        x_legend = self.margin
+        y_legend = self.height - self.legend
+        rectangle = py.Rect(
+            x_legend,
+            y_legend,
+            self.width - 2 * self.margin,
+            100
+        )
+        py.draw.rect(self.screen, Colors.WHITE.value, rectangle, 5)
+
+
 
     def drones_launcher(self) -> None:
         """Make the drones advance on the map"""
