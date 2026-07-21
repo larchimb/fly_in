@@ -1,5 +1,6 @@
 from srcs.models import MapError, Zone, StartZone, EndZone, BlockedZone, PriorityZone, Connection, Drone, Colors, DisplayError
 import pygame as py
+import sys
 from enum import Enum
 
 
@@ -91,7 +92,6 @@ class MapDisplay():
             )
         self.size = (self.width, self.height)
         if self.width > 3500:
-            print(self.width)
             raise DisplayError("Width is too large for this map")
         if self.height > 2000:
             raise DisplayError("Height is too high for this map")
@@ -100,27 +100,25 @@ class MapDisplay():
         """Initialize the empty screen"""
         self.screen = py.display.set_mode(self.size)
         py.display.set_caption("Fly_in")
+        self.draw_static()
+        py.display.flip()
+        self.launch_animation()
 
+    def draw_static(self) -> None:
+        """Draw hubs, connections and legend (static background)"""
+        self.screen.fill(Colors.BLACK.value)
         for hub in self.map.hubs.values():
-            x = (hub.absc - self.min_x) * self.gap + self.margin
-            y = (hub.ordinate - self.min_y) * self.gap + self.margin
-            place = self.zone_pos(hub)
-            py.draw.circle(self.screen, hub.color.value, place, self.hub_radius)
+            x, y = self.zone_pos(hub)
+            py.draw.circle(
+                self.screen, hub.color.value, (x, y), self.hub_radius
+                )
             self.draw_label(hub.name, Colors.WHITE, x, y + self.hub_radius + 12)
 
         for connect in self.map.connects:
-            start_pos = (
-                ((connect.zone1.absc - self.min_x) * self.gap + self.margin),
-                ((connect.zone1.ordinate - self.min_y) * self.gap + self.margin)
-            )
-            end_pos = (
-                ((connect.zone2.absc - self.min_x) * self.gap + self.margin),
-                ((connect.zone2.ordinate - self.min_y) * self.gap + self.margin)
-            )
+            start_pos = self.zone_pos(connect.zone1)
+            end_pos = self.zone_pos(connect.zone2)
             py.draw.line(self.screen, connect.color.value, start_pos, end_pos)
         self.draw_legend()
-        py.display.flip()
-        self.launch_animation()
 
     def draw_legend(self) -> None:
         """Draw the legend on the screen"""
@@ -176,6 +174,7 @@ class MapDisplay():
                 elif event.type == py.KEYDOWN:
                     if event.key == py.K_ESCAPE:
                         is_active = False
+            self.drones_launcher()
             self.clock.tick(60)
         py.quit()
 
@@ -212,11 +211,34 @@ class MapDisplay():
                         and c.drones_passed < c.capacity):
                         c.drones_passed += 1
                         actual.drone_in -= 1
-                        zone.drone_in +=1
+                        zone.drone_in += 1
                         return zone
         return None
 
     def move_drone(self, drone: Drone, start: Zone, goal: Zone) -> None:
-        """Make a drone move from a zone to another one"""
-        pass
+        """Animate a drone moving from a zone to another one"""
+        x_start, y_start = self.zone_pos(start)
+        x_goal, y_goal = self.zone_pos(goal)
+        steps = 30
 
+        for i in range(1, steps + 1):
+            for event in py.event.get():
+                if event.type == py.QUIT:
+                    py.quit()
+                    sys.exit()
+
+            t = i / steps
+            x = x_start + (x_goal - x_start) * t
+            y = y_start + (y_goal - y_start) * t
+
+            self.draw_static()
+            py.draw.circle(self.screen, Colors.CYAN.value, (x, y), self.drone_radius)
+            self.draw_label(drone.id, Colors.WHITE, x, y)
+            py.display.flip()
+            self.clock.tick(60)
+
+        drone.pos = goal
+        drone.moves += 1
+        if drone.pos == self.map.end:
+            self.map.drones.remove(drone)
+        print(f"{drone.id}-{drone.pos.name}")
