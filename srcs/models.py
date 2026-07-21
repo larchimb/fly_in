@@ -75,7 +75,7 @@ class Zone():
         self.capacity = max_drones
         self.cost = 1
         self.drone_in = 0
-        self.path_to_end: float = float("inf")
+        self.path: float = float("inf")
         self.hubs_connected: set[Zone] = set()
         if not color or not color.upper() in [c.name for c in Colors]:
             self.color = Colors.WHITE
@@ -177,8 +177,7 @@ class Connection(Zone):
         ordinate = (zone1.ordinate + zone2.ordinate) / 2
         super().__init__(name, absc, ordinate, capacity, color)
         self.co = {zone1.name, zone2.name}
-
-
+        self.drones_passed: int = 0
 
 
 class Drone():

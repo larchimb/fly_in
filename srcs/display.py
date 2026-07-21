@@ -13,7 +13,7 @@ class Map():
         self.start = start
         self.end = end
         self.hubs = hubs
-        self.connects = connections
+        self.connects = frozenset(connections)
         self.drones: list[Drone] = []
         self.arrived_drones: list[Drone] = []
         self.create_drones_list(nb_drones)
@@ -30,14 +30,14 @@ class Map():
     def path_finder(self) -> None:
         """Compute, via Dijkstra from 'end', the minimal cost for each zone to reach the end"""
         hub_passed: set[Zone] = set()
-        self.end.path_to_end = 0
+        self.end.path = 0
         remaining = set(self.hubs.values())
         if isinstance(self.end, BlockedZone):
             raise MapError("The end is a blocked hub")
         while remaining:
-            zone = min(remaining, key=lambda z: z.path_to_end)
+            zone = min(remaining, key=lambda z: z.path)
             remaining.remove(zone)
-            if zone.path_to_end == float("inf"):
+            if zone.path == float("inf"):
                 break
             hub_passed.add(zone)
 
@@ -49,10 +49,10 @@ class Map():
                     hub_passed.add(neighbor)
                     continue
 
-                new_cost = zone.path_to_end + neighbor.cost
-                if new_cost < neighbor.path_to_end:
-                    neighbor.path_to_end = new_cost
-        if self.start.path_to_end == float("inf"):
+                new_cost = zone.path + neighbor.cost
+                if new_cost < neighbor.path:
+                    neighbor.path = new_cost
+        if self.start.path == float("inf"):
             raise Exception("there is no path from start to end")
 
 
@@ -82,6 +82,10 @@ class MapDisplay():
         self.max_y = max(ordinates)
 
         self.width = (self.max_x - self.min_x) * self.gap + 2 * self.margin
+        width_rec = 6 * (self.gap + self.hub_radius)
+
+        if self.width < width_rec:
+            self.width = width_rec + 20
         self.height = (
             (self.max_y - self.min_y) * self.gap + 2 * self.margin + self.legend
             )
@@ -96,16 +100,13 @@ class MapDisplay():
         """Initialize the empty screen"""
         self.screen = py.display.set_mode(self.size)
         py.display.set_caption("Fly_in")
-        is_active = True
 
         for hub in self.map.hubs.values():
             x = (hub.absc - self.min_x) * self.gap + self.margin
             y = (hub.ordinate - self.min_y) * self.gap + self.margin
-            place = (x, y)
+            place = self.zone_pos(hub)
             py.draw.circle(self.screen, hub.color.value, place, self.hub_radius)
-            label = self.font.render(hub.name, True, Colors.WHITE.value)
-            label_pos = (x, y + self.hub_radius + 12)
-            self.screen.blit(label, label.get_rect(center=label_pos))
+            self.draw_label(hub.name, Colors.WHITE, x, y + self.hub_radius + 12)
 
         for connect in self.map.connects:
             start_pos = (
@@ -119,7 +120,55 @@ class MapDisplay():
             py.draw.line(self.screen, connect.color.value, start_pos, end_pos)
         self.draw_legend()
         py.display.flip()
+        self.launch_animation()
 
+    def draw_legend(self) -> None:
+        """Draw the legend on the screen"""
+        height_rec = 112
+        width_rec = 6 * (self.gap + self.hub_radius)
+        x_legend = (self.width - width_rec) / 2
+        y_legend = self.height - self.legend
+        x = x_legend + self.gap
+        y = y_legend + 50
+        place = (x, y)
+        rectangle = py.Rect(
+            x_legend,
+            y_legend,
+            width_rec,
+            height_rec
+        )
+        py.draw.rect(self.screen, Colors.WHITE.value, rectangle, 5)
+        py.draw.circle(self.screen, Colors.WHITE.value, place, self.hub_radius)
+        y_label = y + self.hub_radius + 12
+        self.draw_label("Classic Zone", Colors.WHITE, x, y_label)
+        for c in Zone.__subclasses__():
+            if c is Connection:
+                break
+            x += self.gap
+            zone = c(c.__name__, x, y)
+            py.draw.circle(
+                self.screen, zone.color.value, (x, y), self.hub_radius
+                )
+            self.draw_label(zone.name, zone.color, x, y_label)
+
+    def draw_label(self,
+                   name: str,
+                   color: Colors,
+                   x: float,
+                   y: float) -> None:
+        """Draw the label of a zone under itself"""
+        label = self.font.render(name, True, color.value)
+        label_pos = (x, y)
+        self.screen.blit(label, label.get_rect(center=label_pos))
+
+    def zone_pos(self, zone: Zone) -> tuple[float, float]:
+        """Compute the pixel position of a zone on screen"""
+        x = (zone.absc - self.min_x) * self.gap + self.margin
+        y = (zone.ordinate - self.min_y) * self.gap + self.margin
+        return (x, y)
+
+    def launch_animation(self) -> None:
+        is_active = True
         while is_active:
             for event in py.event.get():
                 if event.type == py.QUIT :
@@ -130,42 +179,44 @@ class MapDisplay():
             self.clock.tick(60)
         py.quit()
 
-    def draw_legend(self) -> None:
-        """Draw the legend on the screen"""
-        x_legend = self.margin
-        y_legend = self.height - self.legend
-        rectangle = py.Rect(
-            x_legend,
-            y_legend,
-            self.width - 2 * self.margin,
-            100
-        )
-        py.draw.rect(self.screen, Colors.WHITE.value, rectangle, 5)
-
-
-
     def drones_launcher(self) -> None:
         """Make the drones advance on the map"""
         for d in self.map.drones:
-            neighbors = [t for t in d.pos.hubs_connected if not isinstance(t, BlockedZone)]
-            p_list = [t for t in d.pos.hubs_connected if isinstance(t, PriorityZone)]
+            actual = d.pos
+            neighbors = [
+                t for t in d.pos.hubs_connected
+                if not isinstance(t, BlockedZone)
+                ]
+            p_list = [t for t in neighbors if isinstance(t, PriorityZone)]
             if p_list:
-                target = min(p_list, key=lambda z: z.path_to_end)
+                target = self.pick_target(p_list, actual)
             else:
-                target = min(
-                    [t for t in d.pos.hubs_connected],
-                    key=lambda z: z.path_to_end
-                    )
+                target = self.pick_target(neighbors, actual)
+            if target is None:
+                continue
+            else:
+                self.move_drone(d, actual, target)
 
-    def pick_target(self, targets: list[Zone], current_cost: int) -> Zone | None:
+    def pick_target(self,
+                    targets: list[Zone] | list[PriorityZone],
+                    actual: Zone) -> Zone | None:
         """Find the closest free hub to the end"""
-        targets = [t for t in targets if t.path_to_end < current_cost]
-        for zone in sorted(targets, key=lambda z: z.path_to_end):
-            if zone.capacity and zone.capacity < zone.drone_in:
-                return zone
+        targets = [t for t in targets if t.path < actual.path]
+        if not targets:
+            return None
+        for zone in sorted(targets, key=lambda z: z.path):
+            if (zone.capacity and
+                zone.capacity > zone.drone_in):
+                for c in self.map.connects:
+                    if (c.co == {actual.name, zone.name}
+                        and c.drones_passed < c.capacity):
+                        c.drones_passed += 1
+                        actual.drone_in -= 1
+                        zone.drone_in +=1
+                        return zone
         return None
 
-    def move_drone(self, start: Zone, goal: Zone) -> None:
+    def move_drone(self, drone: Drone, start: Zone, goal: Zone) -> None:
         """Make a drone move from a zone to another one"""
         pass
 
