@@ -1,4 +1,4 @@
-from srcs.models import MapError, Zone, StartZone, EndZone, BlockedZone, PriorityZone, Connection, Drone, Colors, DisplayError
+from srcs.models import MapError, Zone, StartZone, EndZone, RestrictedZone, BlockedZone, PriorityZone, Connection, Drone, Colors, DisplayError
 import pygame as py
 import sys
 from enum import Enum
@@ -15,26 +15,28 @@ class Map():
         self.end = end
         self.hubs = hubs
         self.connects = frozenset(connections)
-        self.drones: list[Drone] = []
+        self.drones: list[Drone] = self.create_drones_list(nb_drones)
         self.arrived_drones: list[Drone] = []
-        self.create_drones_list(nb_drones)
-        self.path_finder()
+        self.path_for_hub()
         self.turn_moved = 0
         self.total_moved = 0
+        self.path_finder()
 
-    def create_drones_list(self, nb_drones: int) -> None:
+    def create_drones_list(self, nb_drones: int) -> list[Drone]:
         """Create the drones list"""
+        drones = []
         for i in range(1, nb_drones + 1):
-            self.drones.append(Drone(f"D{i}", self.start))
+            d = Drone(f"D{i}", self.start)
+            drones.append(d)
+            d.path.append(self.start)
             self.start.drone_in += 1
+        return drones
 
-    def path_finder(self) -> None:
+    def path_for_hub(self) -> None:
         """Compute, via Dijkstra from 'end', the minimal cost for each zone to reach the end"""
         hub_passed: set[Zone] = set()
         self.end.path = 0
         remaining = set(self.hubs.values())
-        if isinstance(self.end, BlockedZone):
-            raise MapError("The end is a blocked hub")
         while remaining:
             zone = min(remaining, key=lambda z: z.path)
             remaining.remove(zone)
@@ -56,6 +58,72 @@ class Map():
         if self.start.path == float("inf"):
             raise Exception("there is no path from start to end")
 
+    def path_finder(self) -> None:
+        """Find the fastest path to the end for each drone"""
+        self.turn = 0
+        while len(self.drones) - len(self.arrived_drones) > 0:
+            self.turn += 1
+            self.turn_moved = 0
+            for d in self.drones:
+                actual = d.pos
+                neighbors = list(actual.hubs_connected)
+                if len(d.path) > 1 and d.path[-1] in neighbors:
+                    neighbors.remove(d.path[-1])
+                p_list = [t for t in neighbors if isinstance(t, PriorityZone)]
+
+                if isinstance(d.pos, Connection):
+                    target = self.hubs[(d.pos.co - {d.path[-2].name}).pop()]
+                    target.drone_in += 1
+                elif p_list:
+                    target = self.pick_target(p_list, actual)
+                else:
+                    target = self.pick_target(neighbors, actual)
+
+                self.register_path(d, target)
+                if target:
+                   d.pos = target
+                   self.turn_moved += 1
+                   self.total_moved += 1
+
+                if target == self.end:
+                    self.arrived_drones.append(d)
+            self.clean_co()
+
+    def pick_target(self,
+                        targets: list[Zone] | list[PriorityZone],
+                        actual: Zone) -> Zone | None:
+            """Find the closest free hub to the end"""
+            targets = [t for t in targets if t.path < actual.path]
+            if not targets:
+                return None
+            for zone in sorted(targets, key=lambda z: z.path):
+                if (zone.capacity and
+                    zone.capacity > zone.drone_in):
+                    for c in self.connects:
+                        if (c.co == {actual.name, zone.name}
+                            and c.drones_passed < c.capacity):
+                            c.drones_passed += 1
+                            actual.drone_in -= 1
+                            zone.drone_in += 1
+                            if isinstance(zone, RestrictedZone):
+                                return c
+                            return zone
+            return None
+
+    def register_path(self, d: Drone, target: Zone | None) -> None:
+        """Register the step of the path in the drone"""
+        if target is None:
+            d.path.append(d.path[-1])
+        else:
+            d.path.append(target)
+
+
+    def clean_co(self) -> None:
+        for c in self.connects:
+            if c in [d.pos for d in self.drones]:
+                continue
+            else:
+                c.drones_passed = 0
 
 class MapDisplay():
     """Static pygame view of a Map: colored hub nodes, connections, legend."""
@@ -92,8 +160,10 @@ class MapDisplay():
             )
         self.size = (self.width, self.height)
         if self.width > 3500:
+            print(self.width)
             raise DisplayError("Width is too large for this map")
         if self.height > 2000:
+            print(self.height)
             raise DisplayError("Height is too high for this map")
 
     def initialize_screen(self) -> None:
@@ -106,18 +176,18 @@ class MapDisplay():
 
     def draw_static(self) -> None:
         """Draw hubs, connections and legend (static background)"""
-        self.screen.fill(Colors.BLACK.value)
+        self.screen.fill(Colors.WHITE.value)
         for hub in self.map.hubs.values():
             x, y = self.zone_pos(hub)
             py.draw.circle(
                 self.screen, hub.color.value, (x, y), self.hub_radius
                 )
-            self.draw_label(hub.name, Colors.WHITE, x, y + self.hub_radius + 12)
+            self.draw_label(hub.name, Colors.BLACK, x, y + self.hub_radius + 12)
 
         for connect in self.map.connects:
             start_pos = self.zone_pos(connect.zone1)
             end_pos = self.zone_pos(connect.zone2)
-            py.draw.line(self.screen, connect.color.value, start_pos, end_pos)
+            py.draw.line(self.screen, connect.color.value, start_pos, end_pos, 4)
         self.draw_legend()
 
     def draw_legend(self) -> None:
@@ -135,10 +205,10 @@ class MapDisplay():
             width_rec,
             height_rec
         )
-        py.draw.rect(self.screen, Colors.WHITE.value, rectangle, 5)
-        py.draw.circle(self.screen, Colors.WHITE.value, place, self.hub_radius)
+        py.draw.rect(self.screen, Colors.BLACK.value, rectangle, 5)
+        py.draw.circle(self.screen, Colors.BLACK.value, place, self.hub_radius)
         y_label = y + self.hub_radius + 12
-        self.draw_label("Classic Zone", Colors.WHITE, x, y_label)
+        self.draw_label("Classic Zone", Colors.BLACK, x, y_label)
         for c in Zone.__subclasses__():
             if c is Connection:
                 break
@@ -195,6 +265,8 @@ class MapDisplay():
                 continue
             else:
                 self.move_drone(d, actual, target)
+            neighbors = []
+            p_list = []
 
     def pick_target(self,
                     targets: list[Zone] | list[PriorityZone],
@@ -233,7 +305,7 @@ class MapDisplay():
 
             self.draw_static()
             py.draw.circle(self.screen, Colors.CYAN.value, (x, y), self.drone_radius)
-            self.draw_label(drone.id, Colors.WHITE, x, y)
+            self.draw_label(drone.id, Colors.BLACK, x, y)
             py.display.flip()
             self.clock.tick(60)
 

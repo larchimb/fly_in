@@ -255,5 +255,10 @@ class Parser():
     def connections_builder(self) -> None:
         """Build the bidirectional adjacency list of each zone from the connections"""
         for c in self.connections :
+            if (
+                isinstance(c.zone1, BlockedZone) or
+                isinstance(c.zone2, BlockedZone)
+                ):
+                continue
             c.zone1.hubs_connected.add(c.zone2)
             c.zone2.hubs_connected.add(c.zone1)

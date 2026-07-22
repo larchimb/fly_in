@@ -66,8 +66,8 @@ class Zone():
                  name: str,
                  absc: float,
                  ordinate: float,
-                 max_drones: int | None = 1,
-                 color: str | None = Colors.WHITE.name,
+                 max_drones: int = 1,
+                 color: str | None = Colors.BLACK.name,
                  ) -> None:
         self.name = name
         self.absc = absc
@@ -78,7 +78,7 @@ class Zone():
         self.path: float = float("inf")
         self.hubs_connected: set[Zone] = set()
         if not color or not color.upper() in [c.name for c in Colors]:
-            self.color = Colors.WHITE
+            self.color = Colors.BLACK
         else:
             self.color = Colors[color.upper()]
 
@@ -88,7 +88,7 @@ class StartZone(Zone):
                  name: str,
                  absc: float,
                  ordinate: float,
-                 max_drones: int | None = 1,
+                 max_drones: int = 1,
                  color: str | None = Colors.GREEN.name,
                  ) -> None:
         super().__init__(name, absc, ordinate, max_drones, color)
@@ -103,7 +103,7 @@ class EndZone(Zone):
                  name: str,
                  absc: float,
                  ordinate: float,
-                 max_drones: int | None = 1,
+                 max_drones: int = 1,
                  color: str | None = Colors.BLUE.name,
                  ) -> None:
         super().__init__(name, absc, ordinate, max_drones, color)
@@ -118,7 +118,7 @@ class BlockedZone(Zone):
                  name: str,
                  absc: float,
                  ordinate: float,
-                 max_drones: int | None = 1,
+                 max_drones: int = 1,
                  color: str | None = Colors.RED.name,
                  ) -> None:
         super().__init__(name, absc, ordinate, max_drones, color)
@@ -135,7 +135,7 @@ class RestrictedZone(Zone):
                  name: str,
                  absc: float,
                  ordinate: float,
-                 max_drones: int | None = 1,
+                 max_drones: int = 1,
                  color: str | None = Colors.YELLOW.name,
                  ) -> None:
         super().__init__(name, absc, ordinate, max_drones, color)
@@ -152,7 +152,7 @@ class PriorityZone(Zone):
                  name: str,
                  absc: float,
                  ordinate: float,
-                 max_drones: int | None = 1,
+                 max_drones: int = 1,
                  color: str | None = Colors.MAGENTA.name,
                  ) -> None:
         super().__init__(name, absc, ordinate, max_drones, color)
@@ -172,7 +172,7 @@ class Connection(Zone):
                  ) -> None:
         self.zone1 = zone1
         self.zone2 = zone2
-        color = Colors.WHITE.name
+        color = Colors.BLACK.name
         absc = (zone1.absc + zone2.absc) / 2
         ordinate = (zone1.ordinate + zone2.ordinate) / 2
         super().__init__(name, absc, ordinate, capacity, color)
