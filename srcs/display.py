@@ -22,6 +22,7 @@ class Map():
         self.total_moved = 0
         self.path_finder()
 
+
     def create_drones_list(self, nb_drones: int) -> list[Drone]:
         """Create the drones list"""
         drones = []
@@ -65,35 +66,45 @@ class Map():
             self.turn += 1
             self.turn_moved = 0
             for d in self.drones:
+                if d.pos == self.end:
+                    continue
+                targets = []
+                self.start.path = min(self.start.hubs_connected, key=lambda z: z.path).path + 1
                 actual = d.pos
                 neighbors = list(actual.hubs_connected)
-                if len(d.path) > 1 and d.path[-1] in neighbors:
-                    neighbors.remove(d.path[-1])
-                p_list = [t for t in neighbors if isinstance(t, PriorityZone)]
+                for z in neighbors:
+                    if ((z in d.path) or
+                        (isinstance(z, PriorityZone)
+                            and actual.path < z.path)):
+                        continue
+                    else:
+                        targets.append(z)
+
+                p_list = [t for t in targets if isinstance(t, PriorityZone)]
 
                 if isinstance(d.pos, Connection):
                     target = self.hubs[(d.pos.co - {d.path[-2].name}).pop()]
-                    target.drone_in += 1
                 elif p_list:
                     target = self.pick_target(p_list, actual)
                 else:
-                    target = self.pick_target(neighbors, actual)
+                    target = self.pick_target(targets, actual)
 
                 self.register_path(d, target)
                 if target:
-                   d.pos = target
-                   self.turn_moved += 1
-                   self.total_moved += 1
+                    actual = target
+                    self.turn_moved += 1
+                    self.total_moved += 1
 
                 if target == self.end:
                     self.arrived_drones.append(d)
+
             self.clean_co()
 
     def pick_target(self,
                         targets: list[Zone] | list[PriorityZone],
                         actual: Zone) -> Zone | None:
             """Find the closest free hub to the end"""
-            targets = [t for t in targets if t.path < actual.path]
+            targets = [t for t in targets if t.path <= actual.path]
             if not targets:
                 return None
             for zone in sorted(targets, key=lambda z: z.path):
@@ -105,9 +116,12 @@ class Map():
                             c.drones_passed += 1
                             actual.drone_in -= 1
                             zone.drone_in += 1
+
                             if isinstance(zone, RestrictedZone):
                                 return c
                             return zone
+                else:
+                    zone.path += 1
             return None
 
     def register_path(self, d: Drone, target: Zone | None) -> None:
@@ -124,6 +138,7 @@ class Map():
                 continue
             else:
                 c.drones_passed = 0
+
 
 class MapDisplay():
     """Static pygame view of a Map: colored hub nodes, connections, legend."""
@@ -244,7 +259,7 @@ class MapDisplay():
                 elif event.type == py.KEYDOWN:
                     if event.key == py.K_ESCAPE:
                         is_active = False
-            self.drones_launcher()
+            # self.drones_launcher()
             self.clock.tick(60)
         py.quit()
 
