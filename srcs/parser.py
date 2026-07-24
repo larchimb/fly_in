@@ -113,7 +113,7 @@ class Parser():
         try:
             name, abscissa, ordinate = elements
         except Exception:
-            raise ParsingError(self.i, "You must have 3 parameters before options '[]'")
+            raise ParsingError(self.i, "line must be written 'arg1 arg2 arg3 [options]'")
 
         if not name.find("-") == -1:
             raise ParsingError(self.i, "Hub's name must not contain '-'")
@@ -191,7 +191,7 @@ class Parser():
             zone = dic_option.get(HubOptions.ZON.value)
 
         if self.is_start:
-            self.hubs[name] = StartZone(name, absc, ord, self.drones, color)
+            self.hubs[name] = StartZone(name, absc, ord, self.drones + 1, color)
             self.start = self.hubs[name]
         elif self.is_end:
             self.hubs[name] = EndZone(name, absc, ord, self.drones, color)

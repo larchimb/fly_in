@@ -10,6 +10,7 @@ def main() -> None:
     parser = Parser()
     parser.check_file(sys.argv[1])
     map = parser.map_builder()
+    print(map.turn)
     display = MapDisplay(map)
 
 

@@ -3,7 +3,7 @@ HIDE = PYGAME_HIDE_SUPPORT_PROMPT=1
 
 VPATH = srcs/
 
-.PHONY: install run debug clean lint lint-strict
+.PHONY: install run debug test clean lint lint-strict
 
 install:
 	uv sync
@@ -13,6 +13,9 @@ run:
 
 debug:
 	$(HIDE) uv run python -m pdb main.py $(ARG)
+
+test:
+	$(HIDE) uv run python testeur.py
 
 clean:
 	find . -type d -name "__pycache__" -exec rm -rf {} +

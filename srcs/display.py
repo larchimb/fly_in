@@ -22,7 +22,6 @@ class Map():
         self.total_moved = 0
         self.path_finder()
 
-
     def create_drones_list(self, nb_drones: int) -> list[Drone]:
         """Create the drones list"""
         drones = []
@@ -57,7 +56,7 @@ class Map():
                 if new_cost < neighbor.path:
                     neighbor.path = new_cost
         if self.start.path == float("inf"):
-            raise Exception("there is no path from start to end")
+            raise MapError("there is no path from start to end")
 
     def path_finder(self) -> None:
         """Find the fastest path to the end for each drone"""
@@ -66,63 +65,49 @@ class Map():
             self.turn += 1
             self.turn_moved = 0
             for d in self.drones:
-                if d.pos == self.end:
-                    continue
-                targets = []
-                self.start.path = min(self.start.hubs_connected, key=lambda z: z.path).path + 1
-                actual = d.pos
-                neighbors = list(actual.hubs_connected)
-                for z in neighbors:
-                    if ((z in d.path) or
-                        (isinstance(z, PriorityZone)
-                            and actual.path < z.path)):
-                        continue
-                    else:
-                        targets.append(z)
-
-                p_list = [t for t in targets if isinstance(t, PriorityZone)]
-
-                if isinstance(d.pos, Connection):
-                    target = self.hubs[(d.pos.co - {d.path[-2].name}).pop()]
-                elif p_list:
-                    target = self.pick_target(p_list, actual)
-                else:
-                    target = self.pick_target(targets, actual)
+                # if d.pos == self.end:
+                #     continue
+                targets = list(d.pos.hubs_connected)
+                target = self.pick_target(d, targets, d.pos)
 
                 self.register_path(d, target)
-                if target:
-                    actual = target
-                    self.turn_moved += 1
-                    self.total_moved += 1
-
                 if target == self.end:
                     self.arrived_drones.append(d)
 
             self.clean_co()
 
     def pick_target(self,
-                        targets: list[Zone] | list[PriorityZone],
+                        d: Drone,
+                        neighbors: list[Zone] | list[PriorityZone],
                         actual: Zone) -> Zone | None:
-            """Find the closest free hub to the end"""
-            targets = [t for t in targets if t.path <= actual.path]
-            if not targets:
-                return None
-            for zone in sorted(targets, key=lambda z: z.path):
-                if (zone.capacity and
-                    zone.capacity > zone.drone_in):
-                    for c in self.connects:
-                        if (c.co == {actual.name, zone.name}
-                            and c.drones_passed < c.capacity):
-                            c.drones_passed += 1
-                            actual.drone_in -= 1
-                            zone.drone_in += 1
+        """Find the closest free hub to the end"""
+        if isinstance(d.pos, Connection):
+            return self.hubs[(d.pos.co - {d.path[-2].name}).pop()]
 
-                            if isinstance(zone, RestrictedZone):
-                                return c
-                            return zone
-                else:
-                    zone.path += 1
+        targs = [
+            t for t in neighbors if (
+                t.path <= actual.path and not t in d.path)
+            ]
+        if not targs:
             return None
+
+        targets = sorted(
+            targs, key=lambda z: (not isinstance(z, PriorityZone), z.path)
+            )
+
+        for zone in targets:
+            if (zone.capacity and
+                zone.capacity > zone.drone_in):
+                for c in self.connects:
+                    if (c.co == {actual.name, zone.name}
+                        and c.drones_passed < c.capacity):
+                        c.drones_passed += 1
+                        actual.drone_in -= 1
+                        zone.drone_in += 1
+                        if isinstance(zone, RestrictedZone):
+                            return c
+                        return zone
+        return None
 
     def register_path(self, d: Drone, target: Zone | None) -> None:
         """Register the step of the path in the drone"""
@@ -130,7 +115,9 @@ class Map():
             d.path.append(d.path[-1])
         else:
             d.path.append(target)
-
+            d.pos = target
+            self.turn_moved += 1
+            self.total_moved += 1
 
     def clean_co(self) -> None:
         for c in self.connects:
@@ -174,7 +161,7 @@ class MapDisplay():
             (self.max_y - self.min_y) * self.gap + 2 * self.margin + self.legend
             )
         self.size = (self.width, self.height)
-        if self.width > 3500:
+        if self.width > 3650:
             print(self.width)
             raise DisplayError("Width is too large for this map")
         if self.height > 2000:
@@ -259,48 +246,24 @@ class MapDisplay():
                 elif event.type == py.KEYDOWN:
                     if event.key == py.K_ESCAPE:
                         is_active = False
-            # self.drones_launcher()
+            self.drones_launcher()
             self.clock.tick(60)
         py.quit()
 
     def drones_launcher(self) -> None:
-        """Make the drones advance on the map"""
-        for d in self.map.drones:
-            actual = d.pos
-            neighbors = [
-                t for t in d.pos.hubs_connected
-                if not isinstance(t, BlockedZone)
-                ]
-            p_list = [t for t in neighbors if isinstance(t, PriorityZone)]
-            if p_list:
-                target = self.pick_target(p_list, actual)
-            else:
-                target = self.pick_target(neighbors, actual)
-            if target is None:
-                continue
-            else:
-                self.move_drone(d, actual, target)
-            neighbors = []
-            p_list = []
+        finished_drones = []
+        while len(self.map.drones) - len(finished_drones):
+            for i in range(0, self.map.turn):
+                for d in self.map.drones:
+                    start = d.path[i]
+                    end = d.path[i + 1]
+                    if start == self.map.end:
+                        continue
+                    if start != end:
+                        self.move_drone(d, start, end)
+                    if end == self.map.end:
+                        finished_drones.append(end)
 
-    def pick_target(self,
-                    targets: list[Zone] | list[PriorityZone],
-                    actual: Zone) -> Zone | None:
-        """Find the closest free hub to the end"""
-        targets = [t for t in targets if t.path < actual.path]
-        if not targets:
-            return None
-        for zone in sorted(targets, key=lambda z: z.path):
-            if (zone.capacity and
-                zone.capacity > zone.drone_in):
-                for c in self.map.connects:
-                    if (c.co == {actual.name, zone.name}
-                        and c.drones_passed < c.capacity):
-                        c.drones_passed += 1
-                        actual.drone_in -= 1
-                        zone.drone_in += 1
-                        return zone
-        return None
 
     def move_drone(self, drone: Drone, start: Zone, goal: Zone) -> None:
         """Animate a drone moving from a zone to another one"""
@@ -324,8 +287,3 @@ class MapDisplay():
             py.display.flip()
             self.clock.tick(60)
 
-        drone.pos = goal
-        drone.moves += 1
-        if drone.pos == self.map.end:
-            self.map.drones.remove(drone)
-        print(f"{drone.id}-{drone.pos.name}")
