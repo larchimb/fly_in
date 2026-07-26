@@ -144,6 +144,8 @@ class MapDisplay():
         self.gap = 150
         self.clock = py.time.Clock()
         self.font = py.font.SysFont(None, 20)
+        self.paused = False
+        self.finished = set()
 
         abscissas = [z.absc for z in self.map.hubs.values()]
         ordinates = [z.ordinate for z in self.map.hubs.values()]
@@ -238,52 +240,59 @@ class MapDisplay():
         return (x, y)
 
     def launch_animation(self) -> None:
+        """Run the main loop: replay the simulation until the user quits."""
         is_active = True
         while is_active:
             for event in py.event.get():
-                if event.type == py.QUIT :
-                    is_active = False
-                elif event.type == py.KEYDOWN:
-                    if event.key == py.K_ESCAPE:
-                        is_active = False
-            self.drones_launcher()
-            self.clock.tick(60)
+                if (event.type == py.QUIT or 
+                    event.type == py.KEYDOWN and event.key == py.K_ESCAPE):
+                    py.quit()
+                    sys.exit()
+            if is_active:
+                is_active = self.drones_launcher()
         py.quit()
 
     def drones_launcher(self) -> None:
-        finished_drones = []
-        while len(self.map.drones) - len(finished_drones):
-            for i in range(0, self.map.turn):
-                for d in self.map.drones:
-                    start = d.path[i]
-                    end = d.path[i + 1]
-                    if start == self.map.end:
-                        continue
-                    if start != end:
-                        self.move_drone(d, start, end)
-                    if end == self.map.end:
-                        finished_drones.append(end)
+        """Animate every turn of the simulation. """
+        for i in range(0, self.map.turn):
+            if not self.move_turn(i):        
+                return False
+        return True
 
-
-    def move_drone(self, drone: Drone, start: Zone, goal: Zone) -> None:
-        """Animate a drone moving from a zone to another one"""
-        x_start, y_start = self.zone_pos(start)
-        x_goal, y_goal = self.zone_pos(goal)
-        steps = 30
-
-        for i in range(1, steps + 1):
+    def move_turn(self, i: int) -> bool:
+        """Animate all drone for one turn"""
+        steps = 50
+        step = 1
+        while step <= steps:
             for event in py.event.get():
-                if event.type == py.QUIT:
-                    py.quit()
-                    sys.exit()
-
-            t = i / steps
-            x = x_start + (x_goal - x_start) * t
-            y = y_start + (y_goal - y_start) * t
-
+                if (event.type == py.QUIT or 
+                    event.type == py.KEYDOWN and event.key == py.K_ESCAPE):
+                    return False
+                elif event.type == py.KEYDOWN and event.key == py.K_SPACE:
+                    self.paused = not self.paused
+            t = step / steps
             self.draw_static()
-            py.draw.circle(self.screen, Colors.CYAN.value, (x, y), self.drone_radius)
-            self.draw_label(drone.id, Colors.BLACK, x, y)
+            for d in self.map.drones:
+                x_start, y_start = self.zone_pos(d.path[i])
+                if d.path[i] == self.map.end:
+                    self.draw_drone(d, x_start, y_start)
+                    self.finished.add(d)
+                else:
+                    x_goal, y_goal = self.zone_pos(d.path[i + 1])
+                    x = x_start + (x_goal - x_start) * t
+                    y = y_start + (y_goal - y_start) * t
+                    self.draw_drone(d, x, y)
             py.display.flip()
             self.clock.tick(60)
-
+                
+            if len(self.finished) == len(self.map.drones):
+                self.paused = True
+            if not self.paused:
+                step += 1
+        return True
+    
+    def draw_drone(self, d: Drone, x: float, y: float) -> None:
+        """Drawing a drone at placement (x, y)"""
+        py.draw.circle(self.screen, Colors.CYAN.value, (x, y), self.drone_radius)
+        self.draw_label(d.id, Colors.BLACK, x, y)
+        
