@@ -165,14 +165,14 @@ class Connection(Zone):
                  name: str,
                  zone1: Zone,
                  zone2: Zone,
-                 capacity: int = 1
+                 max_drones: int = 1
                  ) -> None:
         self.zone1 = zone1
         self.zone2 = zone2
         color = Colors.BLACK.name
         absc = (zone1.absc + zone2.absc) / 2
         ordinate = (zone1.ordinate + zone2.ordinate) / 2
-        super().__init__(name, absc, ordinate, capacity, color)
+        super().__init__(name, absc, ordinate, max_drones, color)
         self.co = {zone1.name, zone2.name}
         self.drones_passed: int = 0
 

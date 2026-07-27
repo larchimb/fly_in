@@ -7,7 +7,7 @@ from display import MapDisplay
 def main() -> None:
     """The main programme"""
     if len(sys.argv) != 2:
-        raise Exception
+        raise Exception("[ERROR]: No argument provide")
     parser = Parser()
     parser.check_file(sys.argv[1])
     map = parser.map_builder()

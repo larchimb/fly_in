@@ -269,7 +269,7 @@ class Parser:
             )
         if any(pair == c.co for c in self.connections):
             raise ParsingError(self.i, "There is already this connection")
-        name = HubTypes.CON.value + "_" + str(self.nb_connect)
+        name = "co" + "_" + str(self.nb_connect)
         self.connections.append(
             Connection(name, self.hubs[zone1], self.hubs[zone2], capacity)
         )
