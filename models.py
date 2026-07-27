@@ -15,7 +15,7 @@ class DisplayError(Exception):
         super().__init__(message)
 
     def __str__(self) -> str:
-        return (f"[DISPLAY ERROR]: " + super().__str__())
+        return f"[DISPLAY ERROR]: {super().__str__()}"
 
 
 class MapError(Exception):
@@ -23,7 +23,7 @@ class MapError(Exception):
         super().__init__(message)
 
     def __str__(self) -> str:
-        return (f"[MAP ERROR]: " + super().__str__())
+        return f"[MAP ERROR]: {super().__str__()}"
 
 
 class HubTypes(Enum):
@@ -59,6 +59,7 @@ class Colors(Enum):
     MAGENTA = (200, 70, 200)
     CYAN = (70, 200, 200)
     WHITE = (235, 235, 235)
+    ORANGE = (255, 165, 0)
 
 
 class Zone():
@@ -122,8 +123,6 @@ class BlockedZone(Zone):
                  color: str | None = Colors.RED.name,
                  ) -> None:
         super().__init__(name, absc, ordinate, max_drones, color)
-        self.is_blocked = True
-
         if not color or not color.upper() in [c.name for c in Colors]:
             self.color = Colors.RED
         else:
@@ -139,7 +138,6 @@ class RestrictedZone(Zone):
                  color: str | None = Colors.YELLOW.name,
                  ) -> None:
         super().__init__(name, absc, ordinate, max_drones, color)
-        self.is_restricted = True
         self.cost = 2
         if not color or not color.upper() in [c.name for c in Colors]:
             self.color = Colors.YELLOW
@@ -156,7 +154,6 @@ class PriorityZone(Zone):
                  color: str | None = Colors.MAGENTA.name,
                  ) -> None:
         super().__init__(name, absc, ordinate, max_drones, color)
-        self.is_priority = True
         if not color or not color.upper() in [c.name for c in Colors]:
             self.color = Colors.MAGENTA
         else:
@@ -187,10 +184,4 @@ class Drone():
                  ) -> None:
         self.id = id
         self.pos = position
-        self.moves = 0
         self.path: list[Zone | Connection] = []
-        self.target: Zone
-
-
-
-

@@ -1,16 +1,17 @@
 import sys
 from parser import Parser
 from models import ParsingError
-from display import Map, MapDisplay
+from display import MapDisplay
+
 
 def main() -> None:
-
+    """The main programme"""
     if len(sys.argv) != 2:
         raise Exception
     parser = Parser()
     parser.check_file(sys.argv[1])
     map = parser.map_builder()
-    display = MapDisplay(map)
+    MapDisplay(map)
 
 
 if __name__ == "__main__":

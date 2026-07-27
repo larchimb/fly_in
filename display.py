@@ -1,15 +1,29 @@
-from models import MapError, Zone, StartZone, EndZone, RestrictedZone, PriorityZone, Connection, Drone, Colors, DisplayError
+from models import (
+    MapError,
+    Zone,
+    StartZone,
+    EndZone,
+    BlockedZone,
+    RestrictedZone,
+    PriorityZone,
+    Connection,
+    Drone,
+    Colors,
+    DisplayError,
+)
 import pygame as py
 import sys
 
 
-class Map():
-    def __init__(self,
-                 start: StartZone | Zone,
-                 end: EndZone | Zone,
-                 hubs: dict[str, Zone],
-                 connections: list[Connection],
-                 nb_drones: int) -> None:
+class Map:
+    def __init__(
+        self,
+        start: StartZone | Zone,
+        end: EndZone | Zone,
+        hubs: dict[str, Zone],
+        connections: list[Connection],
+        nb_drones: int,
+    ) -> None:
         self.start = start
         self.end = end
         self.hubs = hubs
@@ -32,7 +46,8 @@ class Map():
         return drones
 
     def path_for_hub(self) -> None:
-        """Compute, via Dijkstra from 'end', the minimal cost for each zone to reach the end"""
+        """Compute, via Dijkstra from 'end',
+        the minimal cost for each zone to reach the end"""
         hub_passed: set[Zone] = set()
         self.end.path = 0
         remaining = set(self.hubs.values())
@@ -68,31 +83,33 @@ class Map():
 
             self.clean_co()
 
-    def pick_target(self,
-                        d: Drone,
-                        neighbors: list[Zone] | list[PriorityZone],
-                        actual: Zone) -> Zone | None:
+    def pick_target(
+        self,
+        d: Drone,
+        neighbors: list[Zone] | list[PriorityZone],
+        actual: Zone,
+    ) -> Zone | None:
         """Find the closest free hub to the end"""
         if isinstance(d.pos, Connection):
             return self.hubs[(d.pos.co - {d.path[-2].name}).pop()]
 
         targs = [
-            t for t in neighbors if (
-                t.path <= actual.path and not t in d.path)
-            ]
+            t for t in neighbors if (t.path <= actual.path and t not in d.path)
+        ]
         if not targs:
             return None
 
         targets = sorted(
             targs, key=lambda z: (not isinstance(z, PriorityZone), z.path)
-            )
+        )
 
         for zone in targets:
-            if (zone.capacity and
-                zone.capacity > zone.drone_in):
+            if zone.capacity and zone.capacity > zone.drone_in:
                 for c in self.connects:
-                    if (c.co == {actual.name, zone.name}
-                        and c.drones_passed < c.capacity):
+                    if (
+                        c.co == {actual.name, zone.name}
+                        and c.drones_passed < c.capacity
+                    ):
                         c.drones_passed += 1
                         actual.drone_in -= 1
                         zone.drone_in += 1
@@ -119,8 +136,9 @@ class Map():
                 c.drones_passed = 0
 
 
-class MapDisplay():
+class MapDisplay:
     """Static pygame view of a Map: colored hub nodes, connections, legend."""
+
     def __init__(self, map: Map) -> None:
         self.mapping = map
         py.init()
@@ -151,8 +169,10 @@ class MapDisplay():
         if self.width < width_rec:
             self.width = width_rec + 20
         self.height = (
-            (self.max_y - self.min_y) * self.gap + 2 * self.margin + self.legend
-            )
+            (self.max_y - self.min_y) * self.gap
+            + 2 * self.margin
+            + self.legend
+        )
         self.size = (self.width, self.height)
         if self.width > 3650:
             print(self.width)
@@ -176,13 +196,17 @@ class MapDisplay():
             x, y = self.zone_pos(hub)
             py.draw.circle(
                 self.screen, hub.color.value, (x, y), self.hub_radius
-                )
-            self.draw_label(hub.name, Colors.BLACK, x, y + self.hub_radius + 12)
+            )
+            self.draw_label(
+                hub.name, Colors.BLACK, x, y + self.hub_radius + 12
+            )
 
         for connect in self.mapping.connects:
             start_pos = self.zone_pos(connect.zone1)
             end_pos = self.zone_pos(connect.zone2)
-            py.draw.line(self.screen, connect.color.value, start_pos, end_pos, 4)
+            py.draw.line(
+                self.screen, connect.color.value, start_pos, end_pos, 4
+            )
         self.draw_legend()
 
     def draw_legend(self) -> None:
@@ -193,32 +217,22 @@ class MapDisplay():
         y_legend = self.height - self.legend
         x = x_legend + self.gap
         y = y_legend + 50
-        place = (x, y)
-        rectangle = py.Rect(
-            x_legend,
-            y_legend,
-            width_rec,
-            height_rec
-        )
+        rectangle = py.Rect(x_legend, y_legend, width_rec, height_rec)
         py.draw.rect(self.screen, Colors.BLACK.value, rectangle, 5)
-        py.draw.circle(self.screen, Colors.BLACK.value, place, self.hub_radius)
+
+        zones = [
+            Zone, StartZone, EndZone, BlockedZone, PriorityZone, RestrictedZone
+            ]
         y_label = y + self.hub_radius + 12
-        self.draw_label("Classic Zone", Colors.BLACK, x, y_label)
-        for c in Zone.__subclasses__():
-            if c is Connection:
-                break
-            x += self.gap
-            zone = c(c.__name__, x, y)
+        for z in zones:
+            zone = z(z.__name__, x, y)
             py.draw.circle(
                 self.screen, zone.color.value, (x, y), self.hub_radius
-                )
+            )
             self.draw_label(zone.name, zone.color, x, y_label)
+            x += self.gap
 
-    def draw_label(self,
-                   name: str,
-                   color: Colors,
-                   x: float,
-                   y: float) -> None:
+    def draw_label(self, name: str, color: Colors, x: float, y: float) -> None:
         """Draw the label of a zone under itself"""
         label = self.font.render(name, True, color.value)
         label_pos = (x, y)
@@ -234,21 +248,23 @@ class MapDisplay():
         """Print the moves of the turn on the terminal"""
         output = ""
         for d in self.mapping.drones:
-            if (d.path[i] != self.mapping.end and
-                d.path[i] != d.path[i +1]):
+            if d.path[i] != self.mapping.end and d.path[i] != d.path[i + 1]:
                 output += f"{d.id}-{d.path[i + 1].name} "
         print(output)
 
     def launch_animation(self) -> None:
-        """Animate every turn of the simulation. """
+        """Animate every turn of the simulation."""
         for i in range(0, self.mapping.turn):
             if not self.move_turn(i):
                 break
             self.terminal_output(i)
         while 1:
             for event in py.event.get():
-                if (event.type == py.QUIT or
-                    event.type == py.KEYDOWN and event.key == py.K_ESCAPE):
+                if (
+                    event.type == py.QUIT
+                    or event.type == py.KEYDOWN
+                    and event.key == py.K_ESCAPE
+                ):
                     py.quit()
                     sys.exit()
 
@@ -258,8 +274,11 @@ class MapDisplay():
         step = 1
         while step <= steps:
             for event in py.event.get():
-                if (event.type == py.QUIT or
-                    event.type == py.KEYDOWN and event.key == py.K_ESCAPE):
+                if (
+                    event.type == py.QUIT
+                    or event.type == py.KEYDOWN
+                    and event.key == py.K_ESCAPE
+                ):
                     return False
                 elif event.type == py.KEYDOWN and event.key == py.K_SPACE:
                     self.paused = not self.paused
@@ -283,5 +302,7 @@ class MapDisplay():
 
     def draw_drone(self, d: Drone, x: float, y: float) -> None:
         """Drawing a drone at placement (x, y)"""
-        py.draw.circle(self.screen, Colors.CYAN.value, (x, y), self.drone_radius)
+        py.draw.circle(
+            self.screen, Colors.CYAN.value, (x, y), self.drone_radius
+        )
         self.draw_label(d.id, Colors.BLACK, x, y)

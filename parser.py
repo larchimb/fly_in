@@ -1,12 +1,18 @@
 from models import ParsingError, HubTypes, HubOptions, ZoneTypes, Zone
-from models import StartZone, EndZone, BlockedZone, RestrictedZone, PriorityZone
+from models import (
+    StartZone,
+    EndZone,
+    BlockedZone,
+    RestrictedZone,
+    PriorityZone,
+)
 from models import ConnectionOptions, Connection
 from display import Map
 import re
 from typing import Any
 
 
-class Parser():
+class Parser:
     def __init__(self) -> None:
         self.rows: list[str] = []
         self.hubs: dict[str, Zone | StartZone | EndZone] = {}
@@ -58,18 +64,21 @@ class Parser():
         key, _, value = self.rows[self.index].strip().partition(": ")
 
         if not key.strip() == "nb_drones":
-            raise ParsingError(self.index,
-                             "\nFirst line must be: 'nb_drones: {positive int}'\n"
-                             f"You have: '{key.strip() + _ + value}'")
+            raise ParsingError(
+                self.index,
+                "\nFirst line must be: 'nb_drones: {positive int}'\n"
+                f"You have: '{key.strip() + _ + value}'",
+            )
         try:
             int_value = int(value.strip())
             if int_value <= 0:
                 raise ValueError
         except ValueError:
-            raise ParsingError(self.index,
+            raise ParsingError(
+                self.index,
                 f"value = {value}: "
-                "You must have a positive number of drone"
-                )
+                "You must have a positive number of drone",
+            )
         self.drones = int_value
 
     def check_line(self, line: str) -> None:
@@ -80,8 +89,11 @@ class Parser():
             return
         key, _, rest_line = line.strip().partition(": ")
         if key not in [e.value for e in HubTypes]:
-            raise ParsingError(self.i, f"'{key}' is unknown, "
-                               f"it must be a 'hub', 'start_hub', 'end_hub' or a 'connection'")
+            raise ParsingError(
+                self.i,
+                f"'{key}' is unknown, it must be a 'hub', "
+                f"'start_hub', 'end_hub' or a 'connection'",
+            )
         elif key == "nb_drones":
             raise ParsingError(self.i, "nb_drones is already set")
         elif key == "connection":
@@ -90,7 +102,9 @@ class Parser():
             if key == HubTypes.STR.value:
                 self.nb_starts += 1
                 if self.nb_starts > 1:
-                    raise ParsingError(self.i, "There is too many start points")
+                    raise ParsingError(
+                        self.i, "There is too many start points"
+                    )
                 self.is_start = True
             elif key == HubTypes.END.value:
                 self.nb_ends += 1
@@ -103,17 +117,21 @@ class Parser():
         """Check hub's name, coordinates and options"""
         matches = re.findall(r"\[.*?\]", line)
         options = []
-        if matches and line.index(']') != len(line.strip()) - 1:
-            raise ParsingError(self.i, "No text allowed after options block '[]'")
+        if matches and line.index("]") != len(line.strip()) - 1:
+            raise ParsingError(
+                self.i, "No text allowed after options block '[]'"
+            )
         if matches:
             options = matches[0][1:-1].strip().split()
-            elements = (line[:line.index('[')]).strip().split()
+            elements = (line[: line.index("[")]).strip().split()
         else:
             elements = line.strip().split()
         try:
             name, abscissa, ordinate = elements
         except Exception:
-            raise ParsingError(self.i, "line must be written 'arg1 arg2 arg3 [options]'")
+            raise ParsingError(
+                self.i, "line must be written 'arg1 arg2 arg3 [options]'"
+            )
 
         if not name.find("-") == -1:
             raise ParsingError(self.i, "Hub's name must not contain '-'")
@@ -125,16 +143,20 @@ class Parser():
         if name in self.hubs.keys():
             raise ParsingError(self.i, f"There is already a '{name}' hub.")
         for hub in self.hubs.keys():
-            if (int_abscissa == self.hubs[hub].absc
-            and int_ordinate == self.hubs[hub].ordinate):
-                raise ParsingError(self.i, f"There is already a hub to this coordinates.")
+            if (
+                int_abscissa == self.hubs[hub].absc
+                and int_ordinate == self.hubs[hub].ordinate
+            ):
+                raise ParsingError(
+                    self.i, "There is already a hub to this coordinates."
+                )
         parsed_options = {}
         if options:
             parsed_options = self.check_hub_options(options)
         self.add_hub(name, int_abscissa, int_ordinate, parsed_options)
 
     def check_hub_options(self, options: list[str]) -> dict[str, str | int]:
-        dic_option = {}
+        dic_option: dict[str, str | int] = {}
         if len(options) > 3:
             raise ParsingError(self.i, "too many options, max 3")
         max_key = 0
@@ -144,54 +166,69 @@ class Parser():
             try:
                 key, value = option.split("=")
             except Exception:
-                raise ParsingError(self.i, "options must be written:[color=blue max_drones=2]")
+                raise ParsingError(
+                    self.i, "options must be written:[color=blue max_drones=2]"
+                )
             if key not in [e.value for e in HubOptions]:
-                raise ParsingError(self.i,
-                                   f"'{key}', options availables are 'color', 'zone' and 'max_drones'")
+                raise ParsingError(
+                    self.i,
+                    f"'{key}',"
+                    "options availables are 'color', 'zone' and 'max_drones'",
+                )
             elif key == HubOptions.COL.value:
                 color_key += 1
                 dic_option[key] = value
                 if not value.isalpha():
-                    raise ParsingError(self.i, "color must be an alphabetic string")
+                    raise ParsingError(
+                        self.i, "color must be an alphabetic string"
+                    )
             elif key == HubOptions.ZON.value:
                 if self.is_start or self.is_end:
-                    raise ParsingError(self.i,
-                                       "Start and end can't be other kind of zone"
-                                       )
+                    raise ParsingError(
+                        self.i, "Start and end can't be other kind of zone"
+                    )
                 zone_key += 1
                 dic_option[key] = value
                 if value not in [e.value for e in ZoneTypes]:
-                    raise ParsingError(self.i,
-                                       f"'{value}', options availables are 'normal', "
-                                       "'blocked', 'restricted' and 'priority'")
+                    raise ParsingError(
+                        self.i,
+                        f"'{value}', options availables are 'normal', "
+                        "'blocked', 'restricted' and 'priority'",
+                    )
             elif key == HubOptions.MXD.value:
                 max_key += 1
                 try:
                     int_value = int(value)
                     if int_value <= 0:
-                        raise ParsingError(self.i, "max_drones must be a positive integer")
+                        raise ParsingError(
+                            self.i, "max_drones must be a positive integer"
+                        )
                     dic_option[key] = int_value
                 except Exception:
-                    raise ParsingError(self.i, "max_drones must be a positive integer")
+                    raise ParsingError(
+                        self.i, "max_drones must be a positive integer"
+                    )
 
             if color_key > 1 or zone_key > 1 or max_key > 1:
                 raise ParsingError(self.i, "put each option once")
         return dic_option
 
-    def add_hub(self, name: str, absc: int, ord: float, dic_option: dict[str, Any]) -> None:
+    def add_hub(
+        self, name: str, absc: int, ord: float, dic_option: dict[str, Any]
+    ) -> None:
         """Add the hub to the dictionnary with the good specification"""
         color: str | None = None
-        max_drone: int | None = 1
+        max_drone: int = 1
         zone: str | None = None
         if dic_option:
             color = dic_option.get("color")
-            max_drone = dic_option.get(HubOptions.MXD.value)
-            if not max_drone:
-                max_drone = 1
+            max_drone = dic_option.get(HubOptions.MXD.value, 1)
             zone = dic_option.get(HubOptions.ZON.value)
 
         if self.is_start:
-            self.hubs[name] = StartZone(name, absc, ord, self.drones + 1, color)
+            self.hubs[name] = StartZone(
+                name, absc, ord, self.drones + 1, color
+            )
             self.start = self.hubs[name]
         elif self.is_end:
             self.hubs[name] = EndZone(name, absc, ord, self.drones, color)
@@ -207,42 +244,58 @@ class Parser():
     def check_connection(self, line: str) -> None:
         """Check connection's name, coordinates and options"""
         matches = re.findall(r"\[.*?\]", line)
-        capacity: int | None = 1
-        if matches and line.index(']') != len(line.strip()) - 1:
-            raise ParsingError(self.i, "No text allowed after options block '[]'")
+        capacity: int = 1
+        if matches and line.index("]") != len(line.strip()) - 1:
+            raise ParsingError(
+                self.i, "No text allowed after options block '[]'"
+            )
         if matches:
             capacity = self.check_connect_options(matches)
-            zones = (line[:line.index('[')]).strip().split("-")
+            zones = (line[: line.index("[")]).strip().split("-")
         else:
             zones = line.strip().split("-")
         if len(zones) != 2:
-            raise ParsingError(self.i, "connection must follow 'zone1-zone2' model")
+            raise ParsingError(
+                self.i, "connection must follow 'zone1-zone2' model"
+            )
         zone1 = zones[0]
         zone2 = zones[1]
         pair = {zone1, zone2}
         if not all(e in self.hubs for e in [zone1, zone2]):
             raise ParsingError(self.i, "one of the zone isn't define")
         if zone1 == zone2:
-            raise ParsingError(self.i, "a connection must be beetween 2 differentes zones")
+            raise ParsingError(
+                self.i, "a connection must be beetween 2 differentes zones"
+            )
         if any(pair == c.co for c in self.connections):
             raise ParsingError(self.i, "There is already this connection")
         name = HubTypes.CON.value + "_" + str(self.nb_connect)
         self.connections.append(
-            Connection(name, self.hubs[zone1], self.hubs[zone2], capacity))
+            Connection(name, self.hubs[zone1], self.hubs[zone2], capacity)
+        )
         self.nb_connect += 1
 
     def check_connect_options(self, matches: list[str]) -> int:
         if len(matches) > 1:
-            raise ParsingError(self.i, "only one option available for a connection")
+            raise ParsingError(
+                self.i, "only one option available for a connection"
+            )
         options = matches[0][1:-1].strip().split("=")
         if options[0] != ConnectionOptions.CAP.value:
-            raise ParsingError(self.i, "only option 'max_link_capacity' available for a connection")
+            raise ParsingError(
+                self.i,
+                "only option 'max_link_capacity' available for a connection",
+            )
         try:
             int_value = int(options[1])
             if int_value <= 0:
-                raise ParsingError(self.i, "a connection must have at least 1 of capacity")
+                raise ParsingError(
+                    self.i, "a connection must have at least 1 of capacity"
+                )
         except Exception:
-            raise ParsingError(self.i, "a connection must have at least 1 of capacity")
+            raise ParsingError(
+                self.i, "a connection must have at least 1 of capacity"
+            )
         return int_value
 
     def map_builder(self) -> Map:
@@ -253,12 +306,11 @@ class Parser():
         return Map(start, end, self.hubs, self.connections, self.drones)
 
     def connections_builder(self) -> None:
-        """Build the bidirectional adjacency list of each zone from the connections"""
-        for c in self.connections :
-            if (
-                isinstance(c.zone1, BlockedZone) or
-                isinstance(c.zone2, BlockedZone)
-                ):
+        """Build the bidirectional adjacency list of each zone"""
+        for c in self.connections:
+            if isinstance(c.zone1, BlockedZone) or isinstance(
+                c.zone2, BlockedZone
+            ):
                 continue
             c.zone1.hubs_connected.add(c.zone2)
             c.zone2.hubs_connected.add(c.zone1)
