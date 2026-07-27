@@ -1,7 +1,6 @@
-from srcs.models import MapError, Zone, StartZone, EndZone, RestrictedZone, BlockedZone, PriorityZone, Connection, Drone, Colors, DisplayError
+from models import MapError, Zone, StartZone, EndZone, RestrictedZone, PriorityZone, Connection, Drone, Colors, DisplayError
 import pygame as py
 import sys
-from enum import Enum
 
 
 class Map():
@@ -47,11 +46,6 @@ class Map():
             for neighbor in zone.hubs_connected:
                 if neighbor in hub_passed:
                     continue
-                if isinstance(neighbor, BlockedZone):
-                    remaining.remove(neighbor)
-                    hub_passed.add(neighbor)
-                    continue
-
                 new_cost = zone.path + neighbor.cost
                 if new_cost < neighbor.path:
                     neighbor.path = new_cost
@@ -65,8 +59,6 @@ class Map():
             self.turn += 1
             self.turn_moved = 0
             for d in self.drones:
-                # if d.pos == self.end:
-                #     continue
                 targets = list(d.pos.hubs_connected)
                 target = self.pick_target(d, targets, d.pos)
 
@@ -130,7 +122,7 @@ class Map():
 class MapDisplay():
     """Static pygame view of a Map: colored hub nodes, connections, legend."""
     def __init__(self, map: Map) -> None:
-        self.map = map
+        self.mapping = map
         py.init()
         self.initialize_settings()
         self.initialize_screen()
@@ -145,10 +137,9 @@ class MapDisplay():
         self.clock = py.time.Clock()
         self.font = py.font.SysFont(None, 20)
         self.paused = False
-        self.finished = set()
 
-        abscissas = [z.absc for z in self.map.hubs.values()]
-        ordinates = [z.ordinate for z in self.map.hubs.values()]
+        abscissas = [z.absc for z in self.mapping.hubs.values()]
+        ordinates = [z.ordinate for z in self.mapping.hubs.values()]
         self.min_x = min(abscissas)
         self.max_x = max(abscissas)
         self.min_y = min(ordinates)
@@ -181,14 +172,14 @@ class MapDisplay():
     def draw_static(self) -> None:
         """Draw hubs, connections and legend (static background)"""
         self.screen.fill(Colors.WHITE.value)
-        for hub in self.map.hubs.values():
+        for hub in self.mapping.hubs.values():
             x, y = self.zone_pos(hub)
             py.draw.circle(
                 self.screen, hub.color.value, (x, y), self.hub_radius
                 )
             self.draw_label(hub.name, Colors.BLACK, x, y + self.hub_radius + 12)
 
-        for connect in self.map.connects:
+        for connect in self.mapping.connects:
             start_pos = self.zone_pos(connect.zone1)
             end_pos = self.zone_pos(connect.zone2)
             py.draw.line(self.screen, connect.color.value, start_pos, end_pos, 4)
@@ -239,25 +230,27 @@ class MapDisplay():
         y = (zone.ordinate - self.min_y) * self.gap + self.margin
         return (x, y)
 
+    def terminal_output(self, i: int) -> None:
+        """Print the moves of the turn on the terminal"""
+        output = ""
+        for d in self.mapping.drones:
+            if (d.path[i] != self.mapping.end and
+                d.path[i] != d.path[i +1]):
+                output += f"{d.id}-{d.path[i + 1].name} "
+        print(output)
+
     def launch_animation(self) -> None:
-        """Run the main loop: replay the simulation until the user quits."""
-        is_active = True
-        while is_active:
+        """Animate every turn of the simulation. """
+        for i in range(0, self.mapping.turn):
+            if not self.move_turn(i):
+                break
+            self.terminal_output(i)
+        while 1:
             for event in py.event.get():
-                if (event.type == py.QUIT or 
+                if (event.type == py.QUIT or
                     event.type == py.KEYDOWN and event.key == py.K_ESCAPE):
                     py.quit()
                     sys.exit()
-            if is_active:
-                is_active = self.drones_launcher()
-        py.quit()
-
-    def drones_launcher(self) -> None:
-        """Animate every turn of the simulation. """
-        for i in range(0, self.map.turn):
-            if not self.move_turn(i):        
-                return False
-        return True
 
     def move_turn(self, i: int) -> bool:
         """Animate all drone for one turn"""
@@ -265,18 +258,17 @@ class MapDisplay():
         step = 1
         while step <= steps:
             for event in py.event.get():
-                if (event.type == py.QUIT or 
+                if (event.type == py.QUIT or
                     event.type == py.KEYDOWN and event.key == py.K_ESCAPE):
                     return False
                 elif event.type == py.KEYDOWN and event.key == py.K_SPACE:
                     self.paused = not self.paused
             t = step / steps
             self.draw_static()
-            for d in self.map.drones:
+            for d in self.mapping.drones:
                 x_start, y_start = self.zone_pos(d.path[i])
-                if d.path[i] == self.map.end:
+                if d.path[i] == self.mapping.end:
                     self.draw_drone(d, x_start, y_start)
-                    self.finished.add(d)
                 else:
                     x_goal, y_goal = self.zone_pos(d.path[i + 1])
                     x = x_start + (x_goal - x_start) * t
@@ -284,15 +276,12 @@ class MapDisplay():
                     self.draw_drone(d, x, y)
             py.display.flip()
             self.clock.tick(60)
-                
-            if len(self.finished) == len(self.map.drones):
-                self.paused = True
+
             if not self.paused:
                 step += 1
         return True
-    
+
     def draw_drone(self, d: Drone, x: float, y: float) -> None:
         """Drawing a drone at placement (x, y)"""
         py.draw.circle(self.screen, Colors.CYAN.value, (x, y), self.drone_radius)
         self.draw_label(d.id, Colors.BLACK, x, y)
-        

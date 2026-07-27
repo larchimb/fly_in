@@ -1,7 +1,7 @@
-from srcs.models import ParsingError, HubTypes, HubOptions, ZoneTypes, Zone
-from srcs.models import StartZone, EndZone, BlockedZone, RestrictedZone, PriorityZone
-from srcs.models import ConnectionOptions, Connection
-from srcs.display import Map
+from models import ParsingError, HubTypes, HubOptions, ZoneTypes, Zone
+from models import StartZone, EndZone, BlockedZone, RestrictedZone, PriorityZone
+from models import ConnectionOptions, Connection
+from display import Map
 import re
 from typing import Any
 

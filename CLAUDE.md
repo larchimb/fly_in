@@ -3,7 +3,7 @@
 ## Fichiers et dossiers à ignorer
 
 Ne pas lire, analyser ou prendre en compte les éléments suivants :
-- Dossier `maps/`
+<!-- - Dossier `maps/` -->
 - Fichier `.env`
 - Fichier `maps.tar.gz`
 - Fichier `.mypy_cache`

@@ -1,9 +1,10 @@
-ARG ?= "test.txt"
+# ARG ?= "test.txt"
 HIDE = PYGAME_HIDE_SUPPORT_PROMPT=1
+FILES = main.py models.py parser.py display.py
 
 VPATH = srcs/
 
-.PHONY: install run debug test clean lint lint-strict
+.PHONY: install run debug clean lint lint-strict
 
 install:
 	uv sync
@@ -14,15 +15,14 @@ run:
 debug:
 	$(HIDE) uv run python -m pdb main.py $(ARG)
 
-test:
-	$(HIDE) uv run python testeur.py
-
 clean:
 	find . -type d -name "__pycache__" -exec rm -rf {} +
 	rm -rf .mypy_cache
 
 lint:
-	flake8 main.py srcs/
+	flake8 $(FILES)
+	mypy $(FILES) --warn-return-any --warn-unused-ignores --ignore-missing-imports --disallow-untyped-defs --check-untyped-defs
 
 lint-strict:
-	mypy main.py srcs/
+	flake8 $(FILES)
+	mypy $(FILES) --strict
