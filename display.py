@@ -176,7 +176,6 @@ class MapDisplay:
         )
         self.size = (self.width, self.height)
         if self.width > 3650:
-            print(self.width)
             raise DisplayError("Width is too large for this map")
         if self.height > 2000:
             print(self.height)
@@ -216,25 +215,25 @@ class MapDisplay:
         self.draw_infos()
 
     def draw_infos(self) -> None:
-            """Draw board's template """
-            width_rec = 200
-            height_rec = 110
-            x_rec = (self.width - width_rec - 50)
-            y_rec = 30
-            self.x_turn = x_rec + 10
-            self.y_turn = y_rec + 10
-            rectangle = py.Rect(x_rec, y_rec, width_rec, height_rec)
-            py.draw.rect(self.screen, Colors.BLACK.value, rectangle, 5)
-            self.draw_text("Turn:", Colors.BLACK, self.x_turn, self.y_turn)
-            self.draw_text(
-                "Total moved:", Colors.BLACK, self.x_turn, self.y_turn + 20
-                )
-            self.draw_text(
-                "Turn moved:", Colors.BLACK, self.x_turn, self.y_turn + 40
-                )
-            self.draw_text(
-                "Average:", Colors.BLACK, self.x_turn, self.y_turn + 60
-                )
+        """Draw board's template """
+        width_rec = 200
+        height_rec = 110
+        x_rec = (self.width - width_rec - 50)
+        y_rec = 30
+        self.x_turn = x_rec + 10
+        self.y_turn = y_rec + 10
+        rectangle = py.Rect(x_rec, y_rec, width_rec, height_rec)
+        py.draw.rect(self.screen, Colors.BLACK.value, rectangle, 5)
+        self.draw_text("Turn:", Colors.BLACK, self.x_turn, self.y_turn)
+        self.draw_text(
+            "Total moved:", Colors.BLACK, self.x_turn, self.y_turn + 20
+            )
+        self.draw_text(
+            "Turn moved:", Colors.BLACK, self.x_turn, self.y_turn + 40
+            )
+        self.draw_text(
+            "Average:", Colors.BLACK, self.x_turn, self.y_turn + 60
+            )
 
     def draw_legend(self) -> None:
         """Draw the legend on the screen"""
@@ -266,10 +265,10 @@ class MapDisplay:
         self.screen.blit(label, label.get_rect(center=label_pos))
 
     def draw_text(self, name: str, color: Colors, x: float, y: float) -> None:
-            """Draw the label of a zone under itself"""
-            label = self.font.render(name, True, color.value)
-            label_pos = (x, y)
-            self.screen.blit(label, label_pos)
+        """Draw the label of a zone under itself"""
+        label = self.font.render(name, True, color.value)
+        label_pos = (x, y)
+        self.screen.blit(label, label_pos)
 
     def actualise_infos(self, i: int) -> None:
         """To refresh board's informations"""
@@ -320,6 +319,7 @@ class MapDisplay:
             if not self.move_turn(i):
                 py.quit()
                 sys.exit()
+            self.terminal_output(i)
             py.time.wait(300)
         self.average_d_()
         while 1:
@@ -355,7 +355,7 @@ class MapDisplay:
             for d in self.mapping.drones:
                 x_start, y_start = self.zone_pos(d.path[i])
                 if (d.path[i] == self.mapping.end or
-                    d.path[i] == d.path[i + 1]):
+                        d.path[i] == d.path[i + 1]):
                     self.draw_drone(d, x_start, y_start)
                 else:
                     x_goal, y_goal = self.zone_pos(d.path[i + 1])

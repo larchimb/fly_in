@@ -17,5 +17,5 @@ def main() -> None:
 if __name__ == "__main__":
     try:
         main()
-    except (ParsingError, Exception) as e:
+    except (ParsingError, Exception, KeyboardInterrupt) as e:
         print(e)

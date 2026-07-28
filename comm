@@ -1,0 +1,13 @@
+-:
+make lint + lint --strict
+print width de debug
+opti display:
+    ne pas compute les elements statiques
+
+README: python >= 3.10 != 3.13
+pas d'output textuel pour les mouvements
+signaux non geres
+
++:
+parsing:
+	- colors: default si couleur non reconnue, mais message informatif serait coolos
