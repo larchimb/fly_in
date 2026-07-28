@@ -31,7 +31,6 @@ class Map:
         self.drones: list[Drone] = self.create_drones_list(nb_drones)
         self.arrived_drones: list[Drone] = []
         self.path_for_hub()
-        self.turn_moved = 0
         self.total_moved = 0
         self.path_finder()
 
@@ -72,7 +71,6 @@ class Map:
         self.turn = 0
         while len(self.drones) - len(self.arrived_drones) > 0:
             self.turn += 1
-            self.turn_moved = 0
             for d in self.drones:
                 targets = list(d.pos.hubs_connected)
                 target = self.pick_target(d, targets, d.pos)
@@ -125,8 +123,8 @@ class Map:
         else:
             d.path.append(target)
             d.pos = target
-            self.turn_moved += 1
             self.total_moved += 1
+            d.moves += 1
 
     def clean_co(self) -> None:
         for c in self.connects:
@@ -141,6 +139,9 @@ class MapDisplay:
 
     def __init__(self, map: Map) -> None:
         self.mapping = map
+        self.turn_moved = 0
+        self.total_moved = 0
+        self.d_moved = 0
         py.init()
         self.initialize_settings()
         self.initialize_screen()
@@ -215,10 +216,10 @@ class MapDisplay:
         self.draw_infos()
 
     def draw_infos(self) -> None:
-            """Draw all informations in a case """
-            width_rec = 100
+            """Draw board's template """
+            width_rec = 200
             height_rec = 110
-            x_rec = (self.width - 150)
+            x_rec = (self.width - width_rec - 50)
             y_rec = 30
             self.x_turn = x_rec + 10
             self.y_turn = y_rec + 10
@@ -226,12 +227,14 @@ class MapDisplay:
             py.draw.rect(self.screen, Colors.BLACK.value, rectangle, 5)
             self.draw_text("Turn:", Colors.BLACK, self.x_turn, self.y_turn)
             self.draw_text(
-                "Total moved:", Colors.BLACK, self.x_turn, self.y_turn + 30
+                "Total moved:", Colors.BLACK, self.x_turn, self.y_turn + 20
+                )
+            self.draw_text(
+                "Turn moved:", Colors.BLACK, self.x_turn, self.y_turn + 40
                 )
             self.draw_text(
                 "Average:", Colors.BLACK, self.x_turn, self.y_turn + 60
                 )
-
 
     def draw_legend(self) -> None:
         """Draw the legend on the screen"""
@@ -268,6 +271,22 @@ class MapDisplay:
             label_pos = (x, y)
             self.screen.blit(label, label_pos)
 
+    def actualise_infos(self, i: int) -> None:
+        """To refresh board's informations"""
+        # rec =
+        self.draw_text(
+            f"{i}", Colors.BLACK, self.x_turn + 90, self.y_turn
+            )
+        self.draw_text(
+            f"{self.total_moved}", Colors.BLACK,
+            self.x_turn + 90,
+            self.y_turn + 20
+            )
+        self.draw_text(
+                    f"{self.d_moved}", Colors.BLACK,
+                    self.x_turn + 90,
+                    self.y_turn + 40
+                    )
 
     def zone_pos(self, zone: Zone) -> tuple[float, float]:
         """Compute the pixel position of a zone on screen"""
@@ -283,14 +302,26 @@ class MapDisplay:
                 output += f"{d.id}-{d.path[i + 1].name} "
         print(output)
 
+    def average_d_(self) -> None:
+        """To display the average turn by drone"""
+        drones_moves = [d.moves for d in self.mapping.drones]
+        average = sum(drones_moves) / len(drones_moves)
+        self.draw_text(
+                f"{average:.2f}", Colors.BLACK,
+                self.x_turn + 90,
+                self.y_turn + 60
+                )
+        py.display.flip()
+
     def launch_animation(self) -> None:
         """Animate every turn of the simulation."""
         for i in range(0, self.mapping.turn):
+            self.d_moved = 0
             if not self.move_turn(i):
                 py.quit()
                 sys.exit()
             py.time.wait(300)
-            self.terminal_output(i)
+        self.average_d_()
         while 1:
             for event in py.event.get():
                 if (
@@ -303,8 +334,12 @@ class MapDisplay:
 
     def move_turn(self, i: int) -> bool:
         """Animate all drone for one turn"""
-        steps = 50
+        steps = 40
         step = 1
+        for d in self.mapping.drones:
+            if d.path[i] != self.mapping.end and d.path[i] != d.path[i + 1]:
+                self.d_moved += 1
+
         while step <= steps:
             for event in py.event.get():
                 if (
@@ -319,16 +354,18 @@ class MapDisplay:
             self.draw_static()
             for d in self.mapping.drones:
                 x_start, y_start = self.zone_pos(d.path[i])
-                if d.path[i] == self.mapping.end:
+                if (d.path[i] == self.mapping.end or
+                    d.path[i] == d.path[i + 1]):
                     self.draw_drone(d, x_start, y_start)
                 else:
                     x_goal, y_goal = self.zone_pos(d.path[i + 1])
                     x = x_start + (x_goal - x_start) * t
                     y = y_start + (y_goal - y_start) * t
                     self.draw_drone(d, x, y)
+                    self.total_moved += int(1 * t)
+            self.actualise_infos(i + 1)
             py.display.flip()
             self.clock.tick(60)
-
 
             if not self.paused:
                 step += 1

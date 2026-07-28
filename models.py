@@ -184,4 +184,5 @@ class Drone():
                  ) -> None:
         self.id = id
         self.pos = position
+        self.moves = 0
         self.path: list[Zone | Connection] = []
