@@ -5,8 +5,9 @@ from models import (
     BlockedZone,
     RestrictedZone,
     PriorityZone,
-    Drone,
+    Connection,
     Colors,
+    Drone,
     DisplayError,
 )
 from map_builder import Map
@@ -113,7 +114,7 @@ class MapDisplay:
             self.background
             )
         self.draw_text(
-            "Turn moved:", Colors.BLACK, self.x_turn, self.y_turn + 40, 
+            "Turn moved:", Colors.BLACK, self.x_turn, self.y_turn + 40,
             self.background
             )
         self.draw_text(
@@ -144,10 +145,10 @@ class MapDisplay:
             self.draw_label(zone.name, zone.color, x, y_label, self.background)
             x += self.gap
 
-    def draw_label(self, 
-                   name: str, 
-                   color: Colors, 
-                   x: float, 
+    def draw_label(self,
+                   name: str,
+                   color: Colors,
+                   x: float,
                    y: float,
                    surface: py.Surface | None = None) -> None:
         """Draw the label of a zone under itself"""
@@ -156,12 +157,12 @@ class MapDisplay:
         label_pos = (x, y)
         target.blit(label, label.get_rect(center=label_pos))
 
-    def draw_text(self, 
-                   name: str, 
-                   color: Colors, 
-                   x: float, 
-                   y: float,
-                   surface: py.Surface | None = None) -> None:
+    def draw_text(self,
+                  name: str,
+                  color: Colors,
+                  x: float,
+                  y: float,
+                  surface: py.Surface | None = None) -> None:
         """Draw the label of a zone under itself"""
         target = surface if surface is not None else self.screen
         label = self.font.render(name, True, color.value)
@@ -210,6 +211,18 @@ class MapDisplay:
                 )
         py.display.flip()
 
+    def hubs_upgrade(self, i: int) -> None:
+        """Upgrade hub's capacity"""
+        for d in self.mapping.drones:
+            if isinstance(d.path[i + 1], Connection):
+                d.path[i].drone_in -= 1
+                d.path[i + 2].drone_in += 1
+            elif isinstance(d.path[i], Connection):
+                continue
+            else:
+                d.path[i].drone_in -= 1
+                d.path[i + 1].drone_in += 1
+
     def launch_animation(self) -> None:
         """Animate every turn of the simulation."""
         for i in range(0, self.mapping.turn):
@@ -217,6 +230,7 @@ class MapDisplay:
             if not self.move_turn(i):
                 py.quit()
                 sys.exit()
+            self.hubs_upgrade(i)
             self.terminal_output(i)
             py.time.wait(300)
         self.average_d_()
@@ -249,7 +263,7 @@ class MapDisplay:
                 elif event.type == py.KEYDOWN and event.key == py.K_SPACE:
                     self.paused = not self.paused
             t = step / steps
-            self.screen.blit(self.background, (0 ,0))
+            self.screen.blit(self.background, (0, 0))
             for d in self.mapping.drones:
                 x_start, y_start = self.zone_pos(d.path[i])
                 if (d.path[i] == self.mapping.end or

@@ -9,6 +9,7 @@ from models import (
     Drone,
 )
 
+
 class Map:
     def __init__(
         self,
@@ -74,6 +75,8 @@ class Map:
                     self.arrived_drones.append(d)
 
             self.clean_co()
+        self.end.drone_in = 0
+        self.start.drone_in = len(self.drones)
 
     def pick_target(
         self,

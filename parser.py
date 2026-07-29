@@ -7,7 +7,7 @@ from models import (
     PriorityZone,
 )
 from models import ConnectionOptions, Connection
-from display import Map
+from map_builder import Map
 import re
 from typing import Any
 
