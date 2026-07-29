@@ -60,6 +60,12 @@ class Colors(Enum):
     CYAN = (70, 200, 200)
     WHITE = (235, 235, 235)
     ORANGE = (255, 165, 0)
+    PURPLE = (150, 80, 200)
+    BROWN = (140, 90, 50)
+    MAROON = (120, 45, 45)
+    GOLD = (210, 175, 60)
+    DARKRED = (140, 30, 30)
+    VIOLET = (170, 90, 220)
 
 
 class Zone():
@@ -79,6 +85,8 @@ class Zone():
         self.path: float = float("inf")
         self.hubs_connected: set[Zone] = set()
         if not color or not color.upper() in [c.name for c in Colors]:
+            print(f"[INFO]: No color, or color unknowed for {self.name}, "
+                  "the default color is applied")
             self.color = Colors.BLACK
         else:
             self.color = Colors[color.upper()]

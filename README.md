@@ -13,7 +13,7 @@ turn by turn, and renders the result as an animated 2D visualization.
 ## Instructions
 
 ### Requirements
-- Python >= 3.13
+- Python >= 3.10
 - [uv](https://docs.astral.sh/uv/) (dependency manager)
 
 ### Installation

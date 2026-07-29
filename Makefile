@@ -1,5 +1,5 @@
 HIDE = PYGAME_HIDE_SUPPORT_PROMPT=1
-FILES = main.py models.py parser.py display.py
+FILES = main.py models.py parser.py display.py map_builder.py
 
 VPATH = srcs/
 

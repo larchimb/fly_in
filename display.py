@@ -1,137 +1,17 @@
 from models import (
-    MapError,
     Zone,
     StartZone,
     EndZone,
     BlockedZone,
     RestrictedZone,
     PriorityZone,
-    Connection,
     Drone,
     Colors,
     DisplayError,
 )
+from map_builder import Map
 import pygame as py
 import sys
-
-
-class Map:
-    def __init__(
-        self,
-        start: StartZone | Zone,
-        end: EndZone | Zone,
-        hubs: dict[str, Zone],
-        connections: list[Connection],
-        nb_drones: int,
-    ) -> None:
-        self.start = start
-        self.end = end
-        self.hubs = hubs
-        self.connects = frozenset(connections)
-        self.drones: list[Drone] = self.create_drones_list(nb_drones)
-        self.arrived_drones: list[Drone] = []
-        self.path_for_hub()
-        self.total_moved = 0
-        self.path_finder()
-
-    def create_drones_list(self, nb_drones: int) -> list[Drone]:
-        """Create the drones list"""
-        drones = []
-        for i in range(1, nb_drones + 1):
-            d = Drone(f"D{i}", self.start)
-            drones.append(d)
-            d.path.append(self.start)
-            self.start.drone_in += 1
-        return drones
-
-    def path_for_hub(self) -> None:
-        """Compute, via Dijkstra from 'end',
-        the minimal cost for each zone to reach the end"""
-        hub_passed: set[Zone] = set()
-        self.end.path = 0
-        remaining = set(self.hubs.values())
-        while remaining:
-            zone = min(remaining, key=lambda z: z.path)
-            remaining.remove(zone)
-            if zone.path == float("inf"):
-                break
-            hub_passed.add(zone)
-
-            for neighbor in zone.hubs_connected:
-                if neighbor in hub_passed:
-                    continue
-                new_cost = zone.path + neighbor.cost
-                if new_cost < neighbor.path:
-                    neighbor.path = new_cost
-        if self.start.path == float("inf"):
-            raise MapError("there is no path from start to end")
-
-    def path_finder(self) -> None:
-        """Find the fastest path to the end for each drone"""
-        self.turn = 0
-        while len(self.drones) - len(self.arrived_drones) > 0:
-            self.turn += 1
-            for d in self.drones:
-                targets = list(d.pos.hubs_connected)
-                target = self.pick_target(d, targets, d.pos)
-
-                self.register_path(d, target)
-                if target == self.end:
-                    self.arrived_drones.append(d)
-
-            self.clean_co()
-
-    def pick_target(
-        self,
-        d: Drone,
-        neighbors: list[Zone] | list[PriorityZone],
-        actual: Zone,
-    ) -> Zone | None:
-        """Find the closest free hub to the end"""
-        if isinstance(d.pos, Connection):
-            return self.hubs[(d.pos.co - {d.path[-2].name}).pop()]
-
-        targs = [
-            t for t in neighbors if (t.path <= actual.path and t not in d.path)
-        ]
-        if not targs:
-            return None
-
-        targets = sorted(
-            targs, key=lambda z: (not isinstance(z, PriorityZone), z.path)
-        )
-
-        for zone in targets:
-            if zone.capacity and zone.capacity > zone.drone_in:
-                for c in self.connects:
-                    if (
-                        c.co == {actual.name, zone.name}
-                        and c.drones_passed < c.capacity
-                    ):
-                        c.drones_passed += 1
-                        actual.drone_in -= 1
-                        zone.drone_in += 1
-                        if isinstance(zone, RestrictedZone):
-                            return c
-                        return zone
-        return None
-
-    def register_path(self, d: Drone, target: Zone | None) -> None:
-        """Register the step of the path in the drone"""
-        if target is None:
-            d.path.append(d.path[-1])
-        else:
-            d.path.append(target)
-            d.pos = target
-            self.total_moved += 1
-            d.moves += 1
-
-    def clean_co(self) -> None:
-        for c in self.connects:
-            if c in [d.pos for d in self.drones]:
-                continue
-            else:
-                c.drones_passed = 0
 
 
 class MapDisplay:
@@ -185,20 +65,23 @@ class MapDisplay:
         """Initialize the empty screen"""
         self.screen = py.display.set_mode(self.size)
         py.display.set_caption("Fly_in")
+        self.background = py.Surface(self.size)
         self.draw_static()
+        self.screen.blit(self.background, (0, 0))
         py.display.flip()
         self.launch_animation()
 
     def draw_static(self) -> None:
-        """Draw hubs, connections and legend (static background)"""
-        self.screen.fill(Colors.WHITE.value)
+        """Draw hubs, connections and legend once onto the background"""
+        self.background.fill(Colors.WHITE.value)
         for hub in self.mapping.hubs.values():
             x, y = self.zone_pos(hub)
             py.draw.circle(
-                self.screen, hub.color.value, (x, y), self.hub_radius
+                self.background, hub.color.value, (x, y), self.hub_radius
             )
             self.draw_label(
-                hub.name, Colors.BLACK, x, y + self.hub_radius + 12
+                hub.name, Colors.BLACK, x, y + self.hub_radius + 12,
+                self.background
             )
 
         for connect in self.mapping.connects:
@@ -206,10 +89,10 @@ class MapDisplay:
             end_pos = self.zone_pos(connect.zone2)
             x, y = self.zone_pos(connect)
             py.draw.line(
-                self.screen, connect.color.value, start_pos, end_pos, 4
+                self.background, connect.color.value, start_pos, end_pos, 4
             )
             self.draw_label(
-                connect.name, Colors.BLACK, x, y - 10
+                connect.name, Colors.BLACK, x, y - 10, self.background
                         )
         self.draw_legend()
         self.draw_infos()
@@ -223,16 +106,19 @@ class MapDisplay:
         self.x_turn = x_rec + 10
         self.y_turn = y_rec + 10
         rectangle = py.Rect(x_rec, y_rec, width_rec, height_rec)
-        py.draw.rect(self.screen, Colors.BLACK.value, rectangle, 5)
+        py.draw.rect(self.background, Colors.BLACK.value, rectangle, 5)
         self.draw_text("Turn:", Colors.BLACK, self.x_turn, self.y_turn)
         self.draw_text(
-            "Total moved:", Colors.BLACK, self.x_turn, self.y_turn + 20
+            "Total moved:", Colors.BLACK, self.x_turn, self.y_turn + 20,
+            self.background
             )
         self.draw_text(
-            "Turn moved:", Colors.BLACK, self.x_turn, self.y_turn + 40
+            "Turn moved:", Colors.BLACK, self.x_turn, self.y_turn + 40, 
+            self.background
             )
         self.draw_text(
-            "Average:", Colors.BLACK, self.x_turn, self.y_turn + 60
+            "Average:", Colors.BLACK, self.x_turn, self.y_turn + 60,
+            self.background
             )
 
     def draw_legend(self) -> None:
@@ -244,7 +130,7 @@ class MapDisplay:
         x = x_legend + self.gap
         y = y_legend + 50
         rectangle = py.Rect(x_legend, y_legend, width_rec, height_rec)
-        py.draw.rect(self.screen, Colors.BLACK.value, rectangle, 5)
+        py.draw.rect(self.background, Colors.BLACK.value, rectangle, 5)
 
         zones = [
             Zone, StartZone, EndZone, BlockedZone, PriorityZone, RestrictedZone
@@ -253,22 +139,34 @@ class MapDisplay:
         for z in zones:
             zone = z(z.__name__, x, y)
             py.draw.circle(
-                self.screen, zone.color.value, (x, y), self.hub_radius
+                self.background, zone.color.value, (x, y), self.hub_radius
             )
-            self.draw_label(zone.name, zone.color, x, y_label)
+            self.draw_label(zone.name, zone.color, x, y_label, self.background)
             x += self.gap
 
-    def draw_label(self, name: str, color: Colors, x: float, y: float) -> None:
+    def draw_label(self, 
+                   name: str, 
+                   color: Colors, 
+                   x: float, 
+                   y: float,
+                   surface: py.Surface | None = None) -> None:
         """Draw the label of a zone under itself"""
+        target = surface if surface is not None else self.screen
         label = self.font.render(name, True, color.value)
         label_pos = (x, y)
-        self.screen.blit(label, label.get_rect(center=label_pos))
+        target.blit(label, label.get_rect(center=label_pos))
 
-    def draw_text(self, name: str, color: Colors, x: float, y: float) -> None:
+    def draw_text(self, 
+                   name: str, 
+                   color: Colors, 
+                   x: float, 
+                   y: float,
+                   surface: py.Surface | None = None) -> None:
         """Draw the label of a zone under itself"""
+        target = surface if surface is not None else self.screen
         label = self.font.render(name, True, color.value)
         label_pos = (x, y)
-        self.screen.blit(label, label_pos)
+        target.blit(label, label_pos)
 
     def actualise_infos(self, i: int) -> None:
         """To refresh board's informations"""
@@ -334,7 +232,7 @@ class MapDisplay:
 
     def move_turn(self, i: int) -> bool:
         """Animate all drone for one turn"""
-        steps = 40
+        steps = 60
         step = 1
         for d in self.mapping.drones:
             if d.path[i] != self.mapping.end and d.path[i] != d.path[i + 1]:
@@ -351,7 +249,7 @@ class MapDisplay:
                 elif event.type == py.KEYDOWN and event.key == py.K_SPACE:
                     self.paused = not self.paused
             t = step / steps
-            self.draw_static()
+            self.screen.blit(self.background, (0 ,0))
             for d in self.mapping.drones:
                 x_start, y_start = self.zone_pos(d.path[i])
                 if (d.path[i] == self.mapping.end or
